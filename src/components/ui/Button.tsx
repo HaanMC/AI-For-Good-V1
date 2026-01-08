@@ -32,24 +32,24 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
 
   const variants = {
     primary: `
-      bg-accent text-white
-      hover:bg-accent/90
-      focus:ring-accent/50
-      shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/30
+      bg-primary-500 text-white
+      hover:bg-primary-600
+      focus:ring-primary-500/50
+      shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/30
     `,
     secondary: `
-      bg-stone-100 dark:bg-stone-800
-      text-stone-700 dark:text-stone-200
-      hover:bg-stone-200 dark:hover:bg-stone-700
-      focus:ring-stone-400/50
-      border border-stone-200 dark:border-stone-700
+      bg-slate-100 dark:bg-slate-800
+      text-slate-700 dark:text-slate-200
+      hover:bg-slate-200 dark:hover:bg-slate-700
+      focus:ring-slate-400/50
+      border border-slate-200 dark:border-slate-700
     `,
     ghost: `
       bg-transparent
-      text-stone-600 dark:text-stone-400
-      hover:bg-stone-100 dark:hover:bg-stone-800
-      hover:text-stone-900 dark:hover:text-stone-100
-      focus:ring-stone-400/50
+      text-slate-600 dark:text-slate-400
+      hover:bg-slate-100 dark:hover:bg-slate-800
+      hover:text-slate-900 dark:hover:text-slate-100
+      focus:ring-slate-400/50
     `,
     danger: `
       bg-red-500 text-white
@@ -64,9 +64,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       shadow-lg shadow-emerald-500/25
     `,
     outline: `
-      bg-transparent border-2 border-accent text-accent
-      hover:bg-accent hover:text-white
-      focus:ring-accent/50
+      bg-transparent border-2 border-primary-500 text-primary-600
+      hover:bg-primary-500 hover:text-white
+      focus:ring-primary-500/50
     `
   };
 
