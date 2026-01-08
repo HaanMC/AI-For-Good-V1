@@ -4,11 +4,12 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const geminiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY
+  // Hỗ trợ cả API_KEY (GitHub Secrets) và GEMINI_API_KEY
+  const geminiKey = env.API_KEY || env.GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY
 
   return {
     // RẤT QUAN TRỌNG: trùng chính xác tên repo
-    base: '/AI-For-Good-V0/',
+    base: '/AI-For-Good-V1/',
 
     server: {
       port: 3000,
