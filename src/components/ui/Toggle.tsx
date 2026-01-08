@@ -50,10 +50,10 @@ const Toggle: React.FC<ToggleProps> = ({
         className={`
           relative inline-flex flex-shrink-0 ${currentSize.track}
           rounded-full transition-colors duration-200 ease-in-out
-          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
           ${checked
-            ? 'bg-accent'
-            : 'bg-stone-200 dark:bg-stone-700'
+            ? 'bg-primary-500'
+            : 'bg-slate-200 dark:bg-slate-700'
           }
         `}
       >
@@ -70,12 +70,12 @@ const Toggle: React.FC<ToggleProps> = ({
       {(label || description) && (
         <div className="flex flex-col">
           {label && (
-            <span className="text-sm font-medium text-stone-700 dark:text-stone-200">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
               {label}
             </span>
           )}
           {description && (
-            <span className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+            <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {description}
             </span>
           )}

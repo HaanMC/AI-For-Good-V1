@@ -10,3 +10,9 @@ export { default as ProfileView } from './ProfileView';
 export { default as WelcomeScreen } from './WelcomeScreen';
 export { default as OnboardingModal } from './OnboardingModal';
 export { default as ChatHistoryModal } from './ChatHistoryModal';
+
+// New redesigned components
+export { default as Dashboard } from './Dashboard';
+export { default as WritingWorkshop } from './WritingWorkshop';
+export { default as StudySchedule } from './StudySchedule';
+export { default as SettingsPage } from './SettingsPage';
