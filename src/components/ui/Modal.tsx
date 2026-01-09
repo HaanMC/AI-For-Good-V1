@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 
 export interface ModalProps {
@@ -15,6 +15,8 @@ export interface ModalProps {
   className?: string;
   headerIcon?: React.ReactNode;
   variant?: 'default' | 'danger' | 'success' | 'warning';
+  /** ID của element đã trigger mở modal, để trả focus khi đóng */
+  triggerElementId?: string;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -30,24 +32,85 @@ const Modal: React.FC<ModalProps> = ({
   footer,
   className = '',
   headerIcon,
-  variant = 'default'
+  variant = 'default',
+  triggerElementId
 }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
   const handleEscape = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape' && closeOnEscape) {
       onClose();
     }
   }, [closeOnEscape, onClose]);
 
+  // Focus trap - giữ focus trong modal
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key !== 'Tab' || !modalRef.current) return;
+
+    const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+
+    if (focusableElements.length === 0) return;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (e.shiftKey) {
+      // Shift + Tab: nếu đang ở đầu, nhảy về cuối
+      if (document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      }
+    } else {
+      // Tab: nếu đang ở cuối, nhảy về đầu
+      if (document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
+      // Lưu element đang focus trước khi mở modal
+      previousActiveElement.current = document.activeElement as HTMLElement;
+
       document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
+
+      // Focus vào modal sau khi render
+      requestAnimationFrame(() => {
+        // Ưu tiên focus vào nút đóng nếu có, hoặc element focusable đầu tiên
+        if (closeButtonRef.current) {
+          closeButtonRef.current.focus();
+        } else if (modalRef.current) {
+          const firstFocusable = modalRef.current.querySelector<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          firstFocusable?.focus();
+        }
+      });
     }
     return () => {
       document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
+
+      // Trả focus về element đã mở modal
+      if (!isOpen && previousActiveElement.current) {
+        if (triggerElementId) {
+          const triggerEl = document.getElementById(triggerElementId);
+          triggerEl?.focus();
+        } else {
+          previousActiveElement.current?.focus();
+        }
+      }
     };
-  }, [isOpen, handleEscape]);
+  }, [isOpen, handleEscape, handleKeyDown, triggerElementId]);
 
   if (!isOpen) return null;
 
@@ -74,15 +137,23 @@ const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? 'modal-title' : undefined}
+      aria-describedby={description ? 'modal-description' : undefined}
+    >
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={closeOnOverlayClick ? onClose : undefined}
+        aria-hidden="true"
       />
 
       {/* Modal Content */}
       <div
+        ref={modalRef}
         className={`
           relative w-full ${sizes[size]}
           bg-white dark:bg-stone-800
@@ -108,21 +179,30 @@ const Modal: React.FC<ModalProps> = ({
             )}
             <div className="flex-1 min-w-0">
               {title && (
-                <h3 className="text-lg font-bold font-serif text-stone-800 dark:text-stone-100 truncate">
+                <h3
+                  id="modal-title"
+                  className="text-lg font-bold font-serif text-stone-800 dark:text-stone-100 truncate"
+                >
                   {title}
                 </h3>
               )}
               {description && (
-                <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5">
+                <p
+                  id="modal-description"
+                  className="text-sm text-stone-500 dark:text-stone-400 mt-0.5"
+                >
                   {description}
                 </p>
               )}
             </div>
             {showCloseButton && (
               <button
+                ref={closeButtonRef}
                 onClick={onClose}
-                className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
-                aria-label="Close modal"
+                className="p-2.5 rounded-lg text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                aria-label="Đóng"
+                title="Đóng (ESC)"
+                type="button"
               >
                 <X className="w-5 h-5" />
               </button>

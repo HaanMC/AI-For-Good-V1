@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { UserCircle2, Save, Plus, X } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { UserCircle2, Save, Plus, X, AlertCircle } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { Modal, Input, Textarea, Button, Badge } from '../ui';
 import { GRADE_10_WEAKNESS_OPTIONS } from '../../../grade10-literature-knowledge';
@@ -10,6 +10,10 @@ interface OnboardingModalProps {
   onSave: (profile: UserProfile) => void;
   initialProfile?: UserProfile | null;
   isEditing?: boolean;
+}
+
+interface FormErrors {
+  name?: string;
 }
 
 const OnboardingModal: React.FC<OnboardingModalProps> = ({
@@ -23,6 +27,22 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [goals, setGoals] = useState(initialProfile?.goals || '');
   const [weaknesses, setWeaknesses] = useState<string[]>(initialProfile?.weaknesses || []);
   const [customWeakness, setCustomWeakness] = useState('');
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  // Xử lý đóng modal với confirm nếu cần
+  const handleClose = useCallback(() => {
+    if (onClose) {
+      onClose();
+    }
+  }, [onClose]);
+
+  // Clear error khi user bắt đầu nhập
+  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+    if (errors.name) {
+      setErrors(prev => ({ ...prev, name: undefined }));
+    }
+  }, [errors.name]);
 
   const toggleWeakness = (w: string) => {
     if (weaknesses.includes(w)) {
@@ -45,10 +65,20 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
   };
 
   const handleSave = () => {
+    // Validate
+    const newErrors: FormErrors = {};
+
     if (!name.trim()) {
-      alert('Vui lòng nhập tên của em!');
+      newErrors.name = 'Bạn chưa nhập họ và tên';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+
+    // Clear errors và save
+    setErrors({});
     onSave({
       ...initialProfile,
       name: name.trim(),
@@ -63,23 +93,35 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose || (() => {})}
+      onClose={handleClose}
       title={isEditing ? 'Cập Nhật Hồ Sơ Học Tập' : 'Thiết Lập Hồ Sơ Cá Nhân'}
       description="AI sẽ cá nhân hóa lộ trình dựa trên thông tin này."
       size="lg"
       headerIcon={<UserCircle2 className="w-6 h-6" />}
-      showCloseButton={isEditing}
-      closeOnOverlayClick={isEditing}
-      closeOnEscape={isEditing}
+      showCloseButton={true}
+      closeOnOverlayClick={true}
+      closeOnEscape={true}
     >
       <div className="space-y-5">
         {/* Name Input */}
-        <Input
-          label="Họ và tên"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="VD: Nguyễn Văn A"
-        />
+        <div>
+          <Input
+            label="Họ và tên"
+            value={name}
+            onChange={handleNameChange}
+            placeholder="VD: Nguyễn Văn A"
+            error={errors.name}
+            required
+            aria-required="true"
+            aria-invalid={!!errors.name}
+          />
+          {errors.name && (
+            <div className="mt-2 flex items-center gap-2 text-red-600 dark:text-red-400" role="alert">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-medium">{errors.name}</span>
+            </div>
+          )}
+        </div>
 
         {/* Weaknesses Selection */}
         <div>
@@ -174,15 +216,29 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
           textareaSize="sm"
         />
 
-        {/* Save Button */}
-        <Button
-          onClick={handleSave}
-          fullWidth
-          size="lg"
-          leftIcon={<Save className="w-4 h-4" />}
-        >
-          {isEditing ? 'Lưu Thay Đổi' : 'Bắt Đầu Hành Trình'}
-        </Button>
+        {/* Buttons */}
+        <div className="space-y-3">
+          <Button
+            onClick={handleSave}
+            fullWidth
+            size="lg"
+            leftIcon={<Save className="w-4 h-4" />}
+          >
+            {isEditing ? 'Lưu Thay Đổi' : 'Bắt Đầu Hành Trình'}
+          </Button>
+
+          {/* Nút "Để sau" cho người dùng mới */}
+          {!isEditing && onClose && (
+            <Button
+              onClick={handleClose}
+              fullWidth
+              size="lg"
+              variant="ghost"
+            >
+              Để sau
+            </Button>
+          )}
+        </div>
       </div>
     </Modal>
   );

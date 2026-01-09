@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -60,6 +61,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
     lg: { left: 'pl-12', right: 'pr-12' }
   };
 
+  const isRequired = props.required || props['aria-required'] === 'true';
+  const errorId = error ? `${inputId}-error` : undefined;
+  const hintId = hint && !error ? `${inputId}-hint` : undefined;
+
   return (
     <div className="w-full">
       {label && (
@@ -68,6 +73,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
           className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2"
         >
           {label}
+          {isRequired && (
+            <span className="text-red-500 ml-1" aria-hidden="true">*</span>
+          )}
         </label>
       )}
       <div className="relative">
@@ -88,6 +96,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
             ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
             ${className}
           `}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={errorId || hintId || undefined}
           {...props}
         />
         {rightIcon && (
@@ -97,10 +107,22 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
         )}
       </div>
       {error && (
-        <p className="mt-1.5 text-sm text-red-500 font-medium">{error}</p>
+        <p
+          id={errorId}
+          className="mt-1.5 text-sm text-red-600 dark:text-red-400 font-medium flex items-center gap-1.5"
+          role="alert"
+        >
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </p>
       )}
       {hint && !error && (
-        <p className="mt-1.5 text-sm text-stone-500 dark:text-stone-400">{hint}</p>
+        <p
+          id={hintId}
+          className="mt-1.5 text-sm text-stone-500 dark:text-stone-400"
+        >
+          {hint}
+        </p>
       )}
     </div>
   );

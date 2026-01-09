@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
@@ -61,6 +62,10 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
     lg: 'px-5 py-4 text-lg min-h-[160px]'
   };
 
+  const isRequired = props.required || props['aria-required'] === 'true';
+  const errorId = error ? `${textareaId}-error` : undefined;
+  const hintId = hint && !error ? `${textareaId}-hint` : undefined;
+
   return (
     <div className="w-full">
       {label && (
@@ -69,6 +74,9 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
           className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2"
         >
           {label}
+          {isRequired && (
+            <span className="text-red-500 ml-1" aria-hidden="true">*</span>
+          )}
         </label>
       )}
       <textarea
@@ -81,14 +89,28 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
           ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
           ${className}
         `}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={errorId || hintId || undefined}
         onChange={handleChange}
         {...props}
       />
       {error && (
-        <p className="mt-1.5 text-sm text-red-500 font-medium">{error}</p>
+        <p
+          id={errorId}
+          className="mt-1.5 text-sm text-red-600 dark:text-red-400 font-medium flex items-center gap-1.5"
+          role="alert"
+        >
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </p>
       )}
       {hint && !error && (
-        <p className="mt-1.5 text-sm text-stone-500 dark:text-stone-400">{hint}</p>
+        <p
+          id={hintId}
+          className="mt-1.5 text-sm text-stone-500 dark:text-stone-400"
+        >
+          {hint}
+        </p>
       )}
     </div>
   );

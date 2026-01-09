@@ -408,30 +408,171 @@
 }
 
 /* ============================================
-   High Contrast Mode
+   High Contrast Mode - Cải thiện khả năng tiếp cận
    ============================================ */
 .high-contrast {
-  --color-primary: 234 88 12; /* orange-600 */
+  --color-primary: 234 88 12; /* orange-600 - đậm hơn */
 }
 
-.high-contrast * {
-  border-width: 2px !important;
+/* Light mode high contrast */
+.high-contrast:not(.dark) {
+  @apply bg-white;
 }
 
-.high-contrast button,
-.high-contrast a,
-.high-contrast input,
-.high-contrast textarea,
-.high-contrast select {
-  font-weight: 600 !important;
+.high-contrast:not(.dark) body {
+  @apply bg-white text-slate-900;
 }
 
+.high-contrast:not(.dark) h1,
+.high-contrast:not(.dark) h2,
+.high-contrast:not(.dark) h3,
+.high-contrast:not(.dark) h4,
+.high-contrast:not(.dark) h5,
+.high-contrast:not(.dark) h6 {
+  @apply text-black;
+}
+
+.high-contrast:not(.dark) p,
+.high-contrast:not(.dark) span,
+.high-contrast:not(.dark) li {
+  @apply text-slate-800;
+}
+
+/* Dark mode high contrast */
 .high-contrast.dark {
+  @apply bg-black;
+}
+
+.high-contrast.dark body {
   @apply bg-black text-white;
 }
 
-.high-contrast:not(.dark) {
-  @apply bg-white text-black;
+.high-contrast.dark h1,
+.high-contrast.dark h2,
+.high-contrast.dark h3,
+.high-contrast.dark h4,
+.high-contrast.dark h5,
+.high-contrast.dark h6 {
+  @apply text-white;
+}
+
+.high-contrast.dark p,
+.high-contrast.dark span,
+.high-contrast.dark li {
+  @apply text-slate-100;
+}
+
+/* Cards and surfaces in high contrast */
+.high-contrast:not(.dark) [class*="bg-white"],
+.high-contrast:not(.dark) [class*="bg-stone-50"],
+.high-contrast:not(.dark) [class*="bg-slate-50"] {
+  background-color: white !important;
+  border: 2px solid #1e293b !important;
+}
+
+.high-contrast.dark [class*="dark:bg-stone-800"],
+.high-contrast.dark [class*="dark:bg-slate-800"],
+.high-contrast.dark [class*="dark:bg-stone-900"],
+.high-contrast.dark [class*="dark:bg-slate-900"] {
+  background-color: #0f172a !important;
+  border: 2px solid #e2e8f0 !important;
+}
+
+/* Tăng đậm text cho các element quan trọng */
+.high-contrast button,
+.high-contrast a,
+.high-contrast label {
+  font-weight: 600 !important;
+}
+
+.high-contrast input,
+.high-contrast textarea,
+.high-contrast select {
+  font-weight: 500 !important;
+  border-width: 2px !important;
+}
+
+/* Focus ring cực rõ trong high contrast */
+.high-contrast :focus-visible {
+  outline: 3px solid #f97316 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.3) !important;
+}
+
+.high-contrast.dark :focus-visible {
+  outline-color: #fb923c !important;
+  box-shadow: 0 0 0 4px rgba(251, 146, 60, 0.4) !important;
+}
+
+/* Links trong high contrast */
+.high-contrast:not(.dark) a:not([class*="btn"]):not([class*="Button"]) {
+  color: #c2410c !important;
+  text-decoration: underline !important;
+}
+
+.high-contrast:not(.dark) a:not([class*="btn"]):not([class*="Button"]):hover {
+  color: #9a3412 !important;
+}
+
+.high-contrast.dark a:not([class*="btn"]):not([class*="Button"]) {
+  color: #fdba74 !important;
+  text-decoration: underline !important;
+}
+
+.high-contrast.dark a:not([class*="btn"]):not([class*="Button"]):hover {
+  color: #fed7aa !important;
+}
+
+/* Active/hover states rõ ràng hơn */
+.high-contrast button:hover:not(:disabled),
+.high-contrast [role="button"]:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+.high-contrast.dark button:hover:not(:disabled),
+.high-contrast.dark [role="button"]:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+/* Placeholder text đậm hơn */
+.high-contrast ::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.high-contrast.dark ::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* Đảm bảo icon button có đủ contrast */
+.high-contrast:not(.dark) [class*="text-stone-400"],
+.high-contrast:not(.dark) [class*="text-slate-400"],
+.high-contrast:not(.dark) [class*="text-stone-500"],
+.high-contrast:not(.dark) [class*="text-slate-500"] {
+  color: #475569 !important;
+}
+
+.high-contrast.dark [class*="dark:text-stone-400"],
+.high-contrast.dark [class*="dark:text-slate-400"],
+.high-contrast.dark [class*="dark:text-stone-500"],
+.high-contrast.dark [class*="dark:text-slate-500"] {
+  color: #cbd5e1 !important;
+}
+
+/* Badge/chip contrast */
+.high-contrast [class*="bg-primary-50"],
+.high-contrast [class*="bg-accent"] {
+  border: 1px solid currentColor !important;
+}
+
+/* Scrollbar trong high contrast */
+.high-contrast::-webkit-scrollbar-thumb {
+  background-color: #475569 !important;
+}
+
+.high-contrast.dark::-webkit-scrollbar-thumb {
+  background-color: #94a3b8 !important;
 }
 
 /* ============================================
