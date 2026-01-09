@@ -80,6 +80,8 @@ import {
   GRADE_10_EXAM_TOPICS,
   Grade10Character
 } from './grade10-literature-knowledge';
+import { getTopicCandidates, isMeaningfulTopic, Candidate, TOPIC_MATCH_THRESHOLD } from './src/utils/topicMatch';
+import { KNOWN_TOPICS } from './src/knowledge/knownTopics';
 
 // --- PDF Generation Helper ---
 const generateExamPDF = (examHistory: ExamHistory) => {
@@ -1409,6 +1411,9 @@ const App: React.FC = () => {
   const [studentWork, setStudentWork] = useState('');
   const [gradingResult, setGradingResult] = useState<GradingResult | null>(null);
   const [examError, setExamError] = useState<string | null>(null);
+  const [topicError, setTopicError] = useState<string | null>(null);
+  const [topicCandidates, setTopicCandidates] = useState<Candidate[]>([]);
+  const [topicIsSelectedFromSuggestion, setTopicIsSelectedFromSuggestion] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
 
   // Exam Security States
@@ -2165,12 +2170,41 @@ const App: React.FC = () => {
   };
 
   const handleGenerateExam = async () => {
-    if (!examTopic) {
-      alert("Vui lòng nhập chủ đề hoặc tác phẩm cần ôn tập!");
+    // Clear previous errors
+    setTopicError(null);
+    setExamError(null);
+
+    // Step 1: Check if topic is empty
+    if (!examTopic || examTopic.trim().length === 0) {
+      setTopicError("Vui lòng nhập chủ đề hoặc tác phẩm cần ôn tập!");
       return;
     }
+
+    // Step 2: Check if topic is meaningful (not too short/gibberish)
+    if (!isMeaningfulTopic(examTopic)) {
+      const candidates = getTopicCandidates(examTopic, KNOWN_TOPICS, 8);
+      setTopicCandidates(candidates);
+      setTopicError("Chủ đề quá ngắn hoặc không rõ ràng. Hãy nhập tên tác phẩm/chủ đề cụ thể hoặc chọn gợi ý bên dưới.");
+      return;
+    }
+
+    // Step 3: Check if topic matches known topics (unless selected from suggestion)
+    const candidates = getTopicCandidates(examTopic, KNOWN_TOPICS, 8);
+    const isValidTopic = topicIsSelectedFromSuggestion || (candidates.length > 0 && candidates[0].score >= TOPIC_MATCH_THRESHOLD);
+
+    if (!isValidTopic) {
+      setTopicCandidates(candidates);
+      if (candidates.length > 0) {
+        setTopicError("Chủ đề chưa khớp chương trình lớp 10. Hãy chọn một gợi ý gần đúng bên dưới.");
+      } else {
+        setTopicError("Không tìm thấy chủ đề phù hợp. Hãy nhập đầy đủ tên tác phẩm (VD: Chữ người tử tù, Đăm Săn, Bình Ngô đại cáo...).");
+      }
+      return;
+    }
+
+    // Topic is valid - proceed with exam generation
+    setTopicCandidates([]);
     setIsLoading(true);
-    setExamError(null);
 
     try {
       // Get exam config for duration
@@ -3092,10 +3126,56 @@ const App: React.FC = () => {
                         <input
                           type="text"
                           value={examTopic}
-                          onChange={(e) => setExamTopic(e.target.value)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setExamTopic(value);
+                            setTopicIsSelectedFromSuggestion(false);
+                            setTopicError(null);
+                            // Update candidates as user types (for live suggestions)
+                            if (value.length >= 2) {
+                              setTopicCandidates(getTopicCandidates(value, KNOWN_TOPICS, 8));
+                            } else {
+                              setTopicCandidates([]);
+                            }
+                          }}
                           placeholder="VD: Bình Ngô đại cáo, Chữ người tử tù, Sử thi Đăm Săn..."
-                          className="w-full p-3 border border-stone-300 dark:border-stone-600 rounded-xl focus:ring-2 focus:ring-accent/20 outline-none bg-white dark:bg-stone-700 text-stone-800 dark:text-stone-100 placeholder-stone-400"
+                          className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-accent/20 outline-none bg-white dark:bg-stone-700 text-stone-800 dark:text-stone-100 placeholder-stone-400 ${
+                            topicError ? 'border-orange-400 dark:border-orange-500' : 'border-stone-300 dark:border-stone-600'
+                          }`}
                         />
+
+                        {/* Topic Validation Error */}
+                        {topicError && (
+                          <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                            <p className="text-sm text-orange-700 dark:text-orange-300 flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                              {topicError}
+                            </p>
+                            {/* Show matching candidates if available */}
+                            {topicCandidates.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs text-orange-600 dark:text-orange-400 mb-1.5">Gợi ý phù hợp:</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {topicCandidates.map(candidate => (
+                                    <button
+                                      key={candidate.value}
+                                      onClick={() => {
+                                        setExamTopic(candidate.value);
+                                        setTopicIsSelectedFromSuggestion(true);
+                                        setTopicError(null);
+                                        setTopicCandidates([]);
+                                      }}
+                                      className="px-2 py-1 text-xs bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-accent/20 hover:text-accent transition-colors border border-orange-200 dark:border-orange-700"
+                                    >
+                                      {candidate.value}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Smart Topic Suggestions - Import từ knowledge file */}
                         <div className="mt-3">
                           <p className="text-xs text-stone-500 dark:text-stone-400 mb-2">Gợi ý nhanh (từ chương trình lớp 10):</p>
@@ -3103,7 +3183,12 @@ const App: React.FC = () => {
                             {GRADE_10_EXAM_TOPICS.slice(0, 15).map(topic => (
                               <button
                                 key={topic}
-                                onClick={() => setExamTopic(topic)}
+                                onClick={() => {
+                                  setExamTopic(topic);
+                                  setTopicIsSelectedFromSuggestion(true);
+                                  setTopicError(null);
+                                  setTopicCandidates([]);
+                                }}
                                 className="px-2.5 py-1 text-xs bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 rounded-lg hover:bg-accent/10 hover:text-accent transition-colors border border-stone-200 dark:border-stone-600"
                               >
                                 {topic}

@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import logger from "../utils/logger";
 import { checkContentSafety, SafetyCheckResult } from "../utils/contentSafetyFilter";
+import { normalizeViText } from "../src/utils/textNormalize";
 import {
   ExamStructure,
   UploadedFile,
@@ -795,10 +796,17 @@ export const generateExamPaper = async (
   userProfile?: UserProfile
 ): Promise<ExamStructure | null> => {
   try {
-    // Validate input
+    // Validate input - basic check
     if (!topic || topic.trim().length === 0) {
       logger.error("Topic is required for exam generation");
       return null;
+    }
+
+    // Guard: Validate topic is meaningful (defense layer - UI should catch this first)
+    const normalizedTopic = normalizeViText(topic);
+    if (normalizedTopic.length < 4) {
+      logger.error("Topic is too short or meaningless:", topic);
+      throw new Error("Chủ đề quá ngắn hoặc không hợp lệ. Vui lòng nhập tên tác phẩm/chủ đề cụ thể.");
     }
 
     // Get exam configuration
