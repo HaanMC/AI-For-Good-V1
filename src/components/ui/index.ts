@@ -41,3 +41,5 @@ export type { EmptyStateProps } from './EmptyState';
 
 export { default as Avatar, AvatarGroup } from './Avatar';
 export type { AvatarProps } from './Avatar';
+
+export { default as LoadingState } from './LoadingState';

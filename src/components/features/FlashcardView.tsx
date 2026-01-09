@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { Layers, RefreshCw, Plus, ChevronLeft, ChevronRight, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Layers, RefreshCw, Plus, ChevronLeft, ChevronRight, RotateCcw, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 import { Flashcard } from '../../types';
 import { Input, Button, Card, Badge, Select, EmptyState } from '../ui';
 import { LoadingDots } from '../ui/LoadingSpinner';
 import { generateFlashcards } from '../../../services/geminiService';
+import { useAsyncOperation } from '../../hooks/useAsyncOperation';
 
 interface FlashcardViewProps {
   weaknesses?: string[];
@@ -102,39 +103,60 @@ const FlashcardItem: React.FC<{ card: Flashcard }> = ({ card }) => {
   );
 };
 
+const PROGRESS_MESSAGES = [
+  'Đang phân tích chủ đề...',
+  'Đang tạo các thẻ ghi nhớ...',
+  'Đang kiểm tra nội dung...',
+  'Sắp hoàn thành...',
+];
+
 const FlashcardView: React.FC<FlashcardViewProps> = ({ weaknesses = [] }) => {
   const [topic, setTopic] = useState('');
   const [count, setCount] = useState('10');
   const [difficulty, setDifficulty] = useState<'mixed' | 'easy' | 'medium' | 'hard'>('mixed');
   const [cards, setCards] = useState<Flashcard[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
+
+  // Sử dụng hook với timeout 30s và progress messages
+  const {
+    isLoading,
+    error,
+    progress,
+    execute,
+    cancel,
+    clearError,
+  } = useAsyncOperation<Flashcard[]>({
+    timeout: 30000,
+    timeoutMessage: 'Việc tạo flashcard mất quá lâu. Vui lòng thử lại hoặc chọn chủ đề đơn giản hơn.',
+    progressMessages: PROGRESS_MESSAGES,
+    progressInterval: 4000,
+  });
 
   // Generate flashcards
   const handleGenerate = useCallback(async () => {
     if (!topic.trim()) return;
 
-    setIsLoading(true);
-    setError(null);
+    const numCards = Math.min(Math.max(parseInt(count) || 10, 1), 50);
 
-    try {
-      const numCards = Math.min(Math.max(parseInt(count) || 10, 1), 50);
-      const result = await generateFlashcards(
-        topic,
-        numCards,
-        difficulty === 'mixed' ? undefined : difficulty
-      );
-      setCards(result);
-      setCurrentIndex(0);
-    } catch (err) {
-      console.error('Flashcard generation error:', err);
-      setError('Không thể tạo flashcard. Vui lòng thử lại.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [topic, count, difficulty]);
+    const result = await execute(
+      async () => {
+        const data = await generateFlashcards(
+          topic,
+          numCards,
+          difficulty === 'mixed' ? undefined : difficulty
+        );
+        if (!data || data.length === 0) {
+          throw new Error('Không thể tạo flashcard với chủ đề này. Thử chủ đề khác nhé!');
+        }
+        return data;
+      },
+      (data) => {
+        setCards(data);
+        setCurrentIndex(0);
+      }
+    );
+  }, [topic, count, difficulty, execute]);
 
   // Navigation
   const goToPrevious = () => {
@@ -252,16 +274,57 @@ const FlashcardView: React.FC<FlashcardViewProps> = ({ weaknesses = [] }) => {
 
         {/* Loading */}
         {isLoading && (
-          <div className="py-8 text-center">
+          <div className="py-8 text-center space-y-4">
             <LoadingDots />
-            <p className="mt-3 text-sm text-stone-500">Đang tạo flashcard về "{topic}"...</p>
+            <div>
+              <p className="text-sm text-stone-600 dark:text-stone-300 font-medium">
+                {progress || `Đang tạo flashcard về "${topic}"...`}
+              </p>
+              <p className="text-xs text-stone-400 dark:text-stone-500 mt-1">
+                Thường mất 10-20 giây
+              </p>
+            </div>
+            <Button
+              onClick={cancel}
+              variant="ghost"
+              size="sm"
+              leftIcon={<XCircle className="w-4 h-4" />}
+            >
+              Hủy
+            </Button>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl">
-            {error}
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-red-700 dark:text-red-300 font-medium">
+                  Không thể tạo flashcard
+                </p>
+                <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                  {error}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleGenerate}
+                size="sm"
+                leftIcon={<RefreshCw className="w-4 h-4" />}
+              >
+                Thử lại
+              </Button>
+              <Button
+                onClick={clearError}
+                variant="ghost"
+                size="sm"
+              >
+                Đóng
+              </Button>
+            </div>
           </div>
         )}
       </Card>

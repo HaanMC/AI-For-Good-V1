@@ -16,3 +16,6 @@ export {
   usePrefersReducedMotion,
   default as useMediaQueryDefault
 } from './useMediaQuery';
+
+export { useAsyncOperation, default as useAsyncOperationDefault } from './useAsyncOperation';
+export type { AsyncOperationState, AsyncOperationOptions } from './useAsyncOperation';

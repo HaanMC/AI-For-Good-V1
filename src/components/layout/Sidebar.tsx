@@ -98,15 +98,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <button
               onClick={onToggle}
-              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
+              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+              aria-label="Đóng menu"
+              title="Đóng menu"
             >
-              <X className="w-5 h-5 text-slate-500" />
+              <X className="w-5 h-5 text-slate-500" aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* Main Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        <nav
+          className="flex-1 overflow-y-auto p-3 space-y-1"
+          aria-label="Điều hướng chính"
+        >
           {mainNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentMode === item.mode;
@@ -119,15 +124,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                   if (window.innerWidth < 1024) onToggle();
                 }}
                 className={`
-                  w-full flex items-start gap-3 px-3 py-3 rounded-xl
+                  relative w-full flex items-start gap-3 px-3 py-3 rounded-xl
                   text-left transition-all duration-200 group
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
                   ${isActive
-                    ? 'bg-primary-50 dark:bg-primary-900/20'
+                    ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-200 dark:ring-primary-800'
                     : 'hover:bg-slate-50 dark:hover:bg-slate-800'
                   }
                 `}
+                aria-current={isActive ? 'page' : undefined}
+                title={item.description}
               >
-                <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                <Icon
+                  className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400 dark:text-slate-500'}`}
+                  aria-hidden="true"
+                />
                 <div className="flex-1 min-w-0">
                   <span className={`font-medium text-sm block ${isActive ? 'text-primary-700 dark:text-primary-400' : 'text-slate-700 dark:text-slate-300'}`}>
                     {item.label}
@@ -138,6 +149,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </p>
                   )}
                 </div>
+                {/* Visual indicator for active state */}
+                {isActive && (
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary-500 rounded-r-full"
+                    aria-hidden="true"
+                  />
+                )}
               </button>
             );
           })}
@@ -145,32 +163,45 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Bottom Section - Theme Toggle */}
         <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider font-medium">
+          <p
+            id="theme-toggle-label"
+            className="text-xs text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider font-medium"
+          >
             Giao diện
           </p>
 
           {/* Main Theme Toggle */}
-          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+          <div
+            className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1"
+            role="group"
+            aria-labelledby="theme-toggle-label"
+          >
             <button
               onClick={() => isDarkMode && onToggleTheme()}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
                 !isDarkMode
                   ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
+              aria-pressed={!isDarkMode}
+              aria-label="Chế độ tối"
+              title="Chuyển sang chế độ tối"
             >
-              <Moon className="w-4 h-4" />
+              <Moon className="w-4 h-4" aria-hidden="true" />
               <span>Tối</span>
             </button>
             <button
               onClick={() => !isDarkMode && onToggleTheme()}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
                 isDarkMode
                   ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
+              aria-pressed={isDarkMode}
+              aria-label="Chế độ sáng"
+              title="Chuyển sang chế độ sáng"
             >
-              <Sun className="w-4 h-4" />
+              <Sun className="w-4 h-4" aria-hidden="true" />
               <span>Sáng</span>
             </button>
           </div>
@@ -181,13 +212,17 @@ const Sidebar: React.FC<SidebarProps> = ({
               onClick={onToggleHighContrast}
               className={`
                 mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500
                 ${isHighContrast
                   ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-800'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }
               `}
+              aria-pressed={isHighContrast}
+              aria-label={isHighContrast ? 'Tắt chế độ tương phản cao' : 'Bật chế độ tương phản cao'}
+              title={isHighContrast ? 'Tắt chế độ tương phản cao' : 'Bật chế độ tương phản cao'}
             >
-              <Contrast className="w-4 h-4" />
+              <Contrast className="w-4 h-4" aria-hidden="true" />
               <span>Tương phản</span>
             </button>
           )}
