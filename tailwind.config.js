@@ -12,22 +12,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary teal/mint color scheme - matches reference UI
+        // Primary orange color scheme - matches reference UI
         primary: {
-          DEFAULT: '#14b8a6',
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          950: '#042f2e',
+          DEFAULT: '#f97316',
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
+          950: '#431407',
         },
-        // Secondary accent color (orange/coral for highlights)
+        // Secondary accent color (for contrast elements)
         accent: {
           DEFAULT: '#f97316',
           50: '#fff7ed',
@@ -46,6 +46,7 @@ export default {
           DEFAULT: '#ffffff',
           secondary: '#f8fafc',
           tertiary: '#f1f5f9',
+          main: '#F6F7F9',
         },
         // Text colors
         content: {
@@ -53,7 +54,7 @@ export default {
           secondary: '#64748b',
           tertiary: '#94a3b8',
         },
-        // Keep old accent for backwards compatibility
+        // Keep semantic colors
         highlight: '#fef3c7',
         paper: '#fdfbf7',
         ink: '#2d3748',
@@ -77,12 +78,13 @@ export default {
       },
       boxShadow: {
         'inner-lg': 'inset 0 2px 4px 0 rgb(0 0 0 / 0.1)',
-        'primary': '0 4px 14px 0 rgb(20 184 166 / 0.25)',
-        'primary-lg': '0 10px 25px -5px rgb(20 184 166 / 0.3)',
+        'primary': '0 4px 14px 0 rgb(249 115 22 / 0.25)',
+        'primary-lg': '0 10px 25px -5px rgb(249 115 22 / 0.3)',
         'accent': '0 4px 14px 0 rgb(249 115 22 / 0.25)',
         'accent-lg': '0 10px 25px -5px rgb(249 115 22 / 0.3)',
         'soft': '0 2px 15px -3px rgb(0 0 0 / 0.07), 0 10px 20px -2px rgb(0 0 0 / 0.04)',
         'card': '0 0 0 1px rgb(0 0 0 / 0.03), 0 2px 4px rgb(0 0 0 / 0.05), 0 12px 24px rgb(0 0 0 / 0.05)',
+        'sidebar': '4px 0 24px -4px rgb(0 0 0 / 0.1)',
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-out',
@@ -154,8 +156,8 @@ export default {
           '50%': { transform: 'translateY(-10px)' },
         },
         'glow': {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(20, 184, 166, 0.3)' },
-          '50%': { boxShadow: '0 0 40px rgba(20, 184, 166, 0.5)' },
+          '0%, 100%': { boxShadow: '0 0 20px rgba(249, 115, 22, 0.3)' },
+          '50%': { boxShadow: '0 0 40px rgba(249, 115, 22, 0.5)' },
         },
       },
       transitionTimingFunction: {
@@ -168,8 +170,8 @@ export default {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'hero-pattern': 'linear-gradient(135deg, #14b8a6 0%, #0d9488 50%, #0f766e 100%)',
-        'hero-pattern-orange': 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',
+        'hero-pattern': 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',
+        'hero-gradient': 'linear-gradient(135deg, #fb923c 0%, #f97316 50%, #ea580c 100%)',
       },
     },
   },

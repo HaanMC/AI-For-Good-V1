@@ -45,7 +45,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
-    <div className="h-screen flex bg-stone-50 dark:bg-stone-950 overflow-hidden">
+    <div className="h-screen flex bg-surface-main dark:bg-slate-950 overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         currentMode={currentMode}
@@ -64,17 +64,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <Header
-          currentMode={currentMode}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={toggleSidebar}
-          isFastMode={isFastMode}
-          onToggleFastMode={onToggleFastMode}
-          onRefresh={onRefresh}
-          isLoading={isLoading}
-          showModeToggle={showModeToggle}
-          hidden={hideHeader}
-        />
+        {!hideHeader && (
+          <Header
+            currentMode={currentMode}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={toggleSidebar}
+            isFastMode={isFastMode}
+            onToggleFastMode={onToggleFastMode}
+            onRefresh={onRefresh}
+            isLoading={isLoading}
+            showModeToggle={showModeToggle}
+            userName={userName}
+          />
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
