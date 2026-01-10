@@ -15,7 +15,6 @@ import {
   fetchMarkdown,
   parseMarkdownToChunks,
   extractTopicCandidates,
-  checkPdfExists,
 } from './sgkLoader';
 import { buildIndex, clearIndex, isIndexReady } from './sgkIndex';
 
@@ -255,24 +254,21 @@ export function getBookById(bookId: string): SgkBook | undefined {
 /**
  * Check availability status of a book
  */
-export async function getBookStatus(bookId: string): Promise<SgkBookStatus> {
+export function getBookStatus(bookId: string): SgkBookStatus {
   const book = getBookById(bookId);
 
   if (!book) {
     return {
       bookId,
       mdAvailable: false,
-      pdfAvailable: false,
     };
   }
 
   const mdAvailable = state.loadedBooks.includes(bookId);
-  const pdfAvailable = await checkPdfExists(book);
 
   return {
     bookId,
     mdAvailable,
-    pdfAvailable,
   };
 }
 

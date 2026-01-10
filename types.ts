@@ -29,8 +29,7 @@ export enum AppMode {
   Mindmap = 'MINDMAP',
   StudyPlan = 'STUDY_PLAN',
   StudentProfile = 'STUDENT_PROFILE',
-  Settings = 'SETTINGS',
-  SgkViewer = 'SGK_VIEWER'  // PDF viewer for textbooks
+  Settings = 'SETTINGS'
 }
 
 // User Personalization

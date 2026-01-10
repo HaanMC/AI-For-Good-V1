@@ -23,7 +23,6 @@ export {
   fetchMarkdown,
   parseMarkdownToChunks,
   extractTopicCandidates,
-  checkPdfExists,
 } from './sgkLoader';
 
 // Index functions

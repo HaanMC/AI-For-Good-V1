@@ -11,8 +11,7 @@ import {
   Sun,
   Moon,
   X,
-  Contrast,
-  FileText
+  Contrast
 } from 'lucide-react';
 import { AppMode } from '../../types';
 
@@ -39,7 +38,6 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { mode: AppMode.StudyChat, label: 'Trợ Lý Học Tập', icon: MessageSquare, description: 'Hỏi đáp, giải thích bài học, phân tích văn bản' },
-  { mode: AppMode.SgkViewer, label: 'Sách Giáo Khoa', icon: FileText, description: 'Xem SGK PDF, tìm kiếm nội dung' },
   { mode: AppMode.Roleplay, label: 'Hóa Thân Nhân Vật', icon: Users, description: 'Trò chuyện với nhân vật trong tác phẩm' },
   { mode: AppMode.ExamGenerator, label: 'Luyện Thi Giả Lập', icon: GraduationCap, description: 'Tạo đề thi, đếm giờ, AI chấm điểm chi tiết' },
   { mode: AppMode.WritingWorkshop, label: 'Phòng Luyện Viết', icon: PenTool, description: 'Phân tích, chấm rubric, cải thiện bài văn' },

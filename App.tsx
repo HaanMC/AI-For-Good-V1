@@ -85,7 +85,6 @@ import { KNOWN_TOPICS } from './src/knowledge/knownTopics';
 
 // SGK Integration
 import { initSgkStore, getSgkStatus } from './src/sgk';
-import SgkViewer from './src/components/features/SgkViewer';
 
 // --- PDF Generation Helper ---
 const generateExamPDF = (examHistory: ExamHistory) => {
@@ -5818,13 +5817,6 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* --- SGK VIEWER --- */}
-        {mode === AppMode.SgkViewer && (
-          <div className="flex-1 overflow-hidden">
-            <SgkViewer />
           </div>
         )}
 
