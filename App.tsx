@@ -83,6 +83,10 @@ import {
 import { getTopicCandidates, isMeaningfulTopic, Candidate, TOPIC_MATCH_THRESHOLD } from './src/utils/topicMatch';
 import { KNOWN_TOPICS } from './src/knowledge/knownTopics';
 
+// SGK Integration
+import { initSgkStore, getSgkStatus } from './src/sgk';
+import SgkViewer from './src/components/features/SgkViewer';
+
 // --- PDF Generation Helper ---
 const generateExamPDF = (examHistory: ExamHistory) => {
   const { examStructure, studentWork, gradingResult, date, score } = examHistory;
@@ -1375,6 +1379,17 @@ const App: React.FC = () => {
       localStorage.setItem('highContrast', 'false');
     }
   }, [isDarkMode, isHighContrast]);
+
+  // Initialize SGK store on mount
+  useEffect(() => {
+    logger.log('[App] Initializing SGK store...');
+    initSgkStore().then(() => {
+      const status = getSgkStatus();
+      logger.log(`[App] SGK store initialized. Status: ${status}`);
+    }).catch((err) => {
+      logger.error('[App] SGK store initialization error:', err);
+    });
+  }, []);
 
   const toggleTheme = () => setIsDarkMode(prev => !prev);
   const toggleHighContrast = () => setIsHighContrast(prev => !prev);
@@ -5803,6 +5818,13 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- SGK VIEWER --- */}
+        {mode === AppMode.SgkViewer && (
+          <div className="flex-1 overflow-hidden">
+            <SgkViewer />
           </div>
         )}
 
