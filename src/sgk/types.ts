@@ -18,7 +18,6 @@ export interface SgkBook {
   grade: number;
   semester: number;
   md: string;  // Path to markdown file
-  pdf: string; // Path to PDF file
 }
 
 /** A chunk of SGK content for indexing and retrieval */
@@ -80,5 +79,4 @@ export interface SgkCitation {
 export interface SgkBookStatus {
   bookId: string;
   mdAvailable: boolean;
-  pdfAvailable: boolean;
 }

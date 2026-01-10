@@ -56,20 +56,6 @@ export async function fetchMarkdown(book: SgkBook): Promise<string | null> {
 }
 
 /**
- * Check if PDF exists for a book
- */
-export async function checkPdfExists(book: SgkBook): Promise<boolean> {
-  try {
-    const baseUrl = getBaseUrl();
-    const pdfPath = book.pdf.startsWith('/') ? book.pdf.slice(1) : book.pdf;
-    const response = await fetch(`${baseUrl}${pdfPath}`, { method: 'HEAD' });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Parse markdown text into chunks
  * Splits by headings (#/##/###) with target chunk size 600-1200 chars
  */
