@@ -32,10 +32,29 @@ import {
   LiteraryWork
 } from "../grade10-literature-knowledge";
 
+// SGK Integration - Knowledge Base
+import {
+  buildChatContext,
+  buildExamContext,
+  buildWritingContext,
+  buildStudyMaterialContext,
+  validateExamTopic as validateTopicFromSgk,
+  shouldProceedWithAi,
+  getSgkEnforcementPrompt,
+  checkSgkAvailability,
+  formatNoMatchError,
+  quickSearchSgk,
+  getAvailableTopics,
+} from "../src/ai/sgkAiService";
+import { isSgkReady, getSgkStatus, getTopicCandidates, findSimilarTopics } from "../src/sgk";
+
 // Re-export searchTerms for use in components
 export { searchTerms } from "../data/staticDictionary";
+// Re-export SGK functions
+export { checkSgkAvailability, quickSearchSgk, getAvailableTopics } from "../src/ai/sgkAiService";
+export { isSgkReady, getSgkStatus, getTopicCandidates, findSimilarTopics } from "../src/sgk";
 
-// Validate API key exists
+// Validate API key exists (from environment variable)
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
   logger.error("⚠️ GEMINI_API_KEY is not configured. Please set the API_KEY environment variable.");
@@ -623,7 +642,26 @@ HỒ SƠ HỌC SINH:
 `
       : "";
 
-    const systemInstruction = BASE_SYSTEM_INSTRUCTION + profileText;
+    // Build SGK context if available
+    let sgkContextText = "";
+    const sgkContext = buildChatContext(message);
+    if (sgkContext.ok && sgkContext.contextText) {
+      sgkContextText = `
+${getSgkEnforcementPrompt()}
+
+${sgkContext.contextText}
+`;
+      logger.log(`[SGK] Chat context built with ${sgkContext.citations?.length || 0} citations`);
+    } else if (isSgkReady()) {
+      // SGK is ready but no match found - add note to system prompt
+      sgkContextText = `
+LƯU Ý: Không tìm thấy nội dung liên quan trong SGK đã tải cho câu hỏi này.
+Nếu học sinh hỏi về tác phẩm/kiến thức cụ thể mà không có trong SGK, hãy gợi ý họ kiểm tra SGK PDF hoặc dùng từ khóa khác.
+Chỉ trả lời các câu hỏi chung về kỹ năng viết, phương pháp học tập, không bịa đặt nội dung tác phẩm.
+`;
+    }
+
+    const systemInstruction = BASE_SYSTEM_INSTRUCTION + profileText + sgkContextText;
     const fileParts = toFileParts(files);
     const isExtendedThinking = !useFastModel;
 
@@ -809,6 +847,15 @@ export const generateExamPaper = async (
       throw new Error("Chủ đề quá ngắn hoặc không hợp lệ. Vui lòng nhập tên tác phẩm/chủ đề cụ thể.");
     }
 
+    // Validate topic against SGK if available
+    if (isSgkReady()) {
+      const topicValidation = validateTopicFromSgk(topic);
+      if (!topicValidation.valid) {
+        logger.warn(`[SGK] Invalid topic: ${topic}, suggestions: ${topicValidation.suggestions.join(', ')}`);
+        // Don't block completely, but log the warning - let legacy validation also run
+      }
+    }
+
     // Get exam configuration
     const config = EXAM_TYPE_CONFIGS[examType];
     if (!config) {
@@ -848,6 +895,19 @@ Hãy thiết kế đề thi có ít nhất 1-2 câu hỏi/yêu cầu tập trung
     // Lấy danh sách tác phẩm động từ knowledge
     const worksList = getShortWorksList();
 
+    // Build SGK context if available
+    let sgkContextSection = "";
+    const sgkContext = buildExamContext(topic);
+    if (sgkContext.ok && sgkContext.contextText) {
+      sgkContextSection = `
+=== NỘI DUNG TỪ SGK (BẮT BUỘC SỬ DỤNG) ===
+${sgkContext.contextText}
+===
+Chỉ sử dụng nội dung trích dẫn ở trên để ra đề. Đảm bảo đề thi phản ánh chính xác kiến thức trong SGK.
+`;
+      logger.log(`[SGK] Exam context built with ${sgkContext.citations?.length || 0} citations`);
+    }
+
     const prompt = `
 Hãy soạn MỘT ĐỀ THI NGỮ VĂN LỚP 10 (CHƯƠNG TRÌNH 2018) hoàn chỉnh theo cấu trúc:
 
@@ -858,6 +918,8 @@ ${worksList}
 2. ⛔ TUYỆT ĐỐI KHÔNG dùng: Truyện Kiều, Chiếc thuyền ngoài xa, Vợ nhặt (các tác phẩm lớp 11-12)
 
 3. 📊 SỐ LƯỢNG CÂU HỎI ĐỌC HIỂU: CHÍNH XÁC ${config.structure.readingQuestions} câu (không nhiều hơn, không ít hơn)
+
+${sgkContextSection}
 
 ${examStructure}
 
@@ -1352,8 +1414,26 @@ export const generateFlashcards = async (
       return null;
     }
 
+    // Build SGK context if available
+    let sgkContextSection = "";
+    const sgkContext = buildStudyMaterialContext(topic);
+    if (sgkContext.ok && sgkContext.contextText) {
+      sgkContextSection = `
+=== NỘI DUNG TỪ SGK (BẮT BUỘC SỬ DỤNG) ===
+${sgkContext.contextText}
+===
+CHỈ tạo flashcards dựa trên nội dung SGK ở trên. Không bịa đặt thông tin.
+`;
+      logger.log(`[SGK] Flashcard context built with ${sgkContext.citations?.length || 0} citations`);
+    } else if (isSgkReady()) {
+      // SGK ready but no match - warn but allow general topics
+      logger.warn(`[SGK] No match for flashcard topic: ${topic}`);
+    }
+
     const prompt = `
 Tạo ${numberOfCards} flashcards (thẻ ghi nhớ) về chủ đề: "${topic}"
+
+${sgkContextSection}
 
 YÊU CẦU:
 1. Mỗi flashcard có:
@@ -1364,7 +1444,7 @@ YÊU CẦU:
 
 2. Nội dung PHẢI:
    - Bám sát chương trình Ngữ Văn lớp 10 (nếu có liên quan)
-   - Tập trung vào kiến thức quan trọng, thường gặp trong thi
+   - ${sgkContextSection ? "Dựa trên nội dung SGK đã cung cấp" : "Tập trung vào kiến thức quan trọng, thường gặp trong thi"}
    - Câu hỏi đa dạng: khái niệm, phân tích, so sánh, nhận diện
    - Đáp án chính xác, có giải thích cụ thể
 
@@ -1457,8 +1537,25 @@ export const generateMindmap = async (
       return null;
     }
 
+    // Build SGK context if available
+    let sgkContextSection = "";
+    const sgkContext = buildStudyMaterialContext(topic);
+    if (sgkContext.ok && sgkContext.contextText) {
+      sgkContextSection = `
+=== NỘI DUNG TỪ SGK (BẮT BUỘC SỬ DỤNG) ===
+${sgkContext.contextText}
+===
+CHỈ tạo mindmap dựa trên nội dung SGK ở trên. Không bịa đặt thông tin.
+`;
+      logger.log(`[SGK] Mindmap context built with ${sgkContext.citations?.length || 0} citations`);
+    } else if (isSgkReady()) {
+      logger.warn(`[SGK] No match for mindmap topic: ${topic}`);
+    }
+
     const prompt = `
 Tạo một sơ đồ tư duy (mindmap) về chủ đề: "${topic}"
+
+${sgkContextSection}
 
 YÊU CẦU:
 1. Cấu trúc phân cấp rõ ràng:
@@ -1477,7 +1574,7 @@ YÊU CẦU:
 
 3. Nội dung PHẢI:
    - Logic, có hệ thống
-   - Bám sát chương trình Ngữ Văn lớp 10 (nếu liên quan)
+   - ${sgkContextSection ? "Dựa trên nội dung SGK đã cung cấp" : "Bám sát chương trình Ngữ Văn lớp 10 (nếu liên quan)"}
    - Bao quát đầy đủ chủ đề
    - Dễ hiểu, dễ học
 
@@ -1656,6 +1753,20 @@ export const generate7DayStudyPlan = async (
       return null;
     }
 
+    // Build SGK context from weaknesses
+    let sgkContextSection = "";
+    const searchQuery = weaknesses.join(" ") + " " + (goals || "");
+    const sgkContext = buildStudyMaterialContext(searchQuery);
+    if (sgkContext.ok && sgkContext.contextText) {
+      sgkContextSection = `
+=== NỘI DUNG THAM KHẢO TỪ SGK ===
+${sgkContext.contextText}
+===
+Sử dụng nội dung SGK trên để đề xuất các hoạt động học tập cụ thể.
+`;
+      logger.log(`[SGK] Study plan context built with ${sgkContext.citations?.length || 0} citations`);
+    }
+
     // Helper function để convert options thành text
     const getDailyTimeText = () => {
       switch (options.dailyStudyTime) {
@@ -1701,6 +1812,8 @@ THÔNG TIN HỌC SINH:
 - Tên: ${userName}
 - Mục tiêu: ${goals || "Cải thiện điểm số"}
 - Điểm yếu cần cải thiện: ${weaknesses.join(", ")}
+
+${sgkContextSection}
 
 ⏰ TÙY CHỌN THỜI GIAN VÀ CƯỜNG ĐỘ:
 - Thời gian học mỗi ngày: ${getDailyTimeText()} (sau giờ học chính khóa)
