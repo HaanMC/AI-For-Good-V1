@@ -8,8 +8,8 @@ export default defineConfig(({ mode }) => {
   const geminiKey = env.API_KEY || env.GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY
 
   return {
-    // RẤT QUAN TRỌNG: trùng chính xác tên repo
-    base: '/AI-For-Good-V1/',
+    // Custom domain: dùng '/' thay vì '/repo-name/'
+    base: '/',
 
     server: {
       port: 3000,
