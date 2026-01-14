@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "deploy:cf": "wrangler deploy",
     "preview": "vite preview",
     "check:dist-secrets": "rg -n \"API_KEY\" dist && { echo \"Found API_KEY in dist output.\"; exit 1; } || exit 0"
   },
