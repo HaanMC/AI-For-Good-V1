@@ -2244,7 +2244,7 @@ const App: React.FC = () => {
     } catch (error: any) {
       // Check for quota error
       if (error?.message?.includes('QUOTA_EXCEEDED')) {
-        setExamError('⚠️ Đã vượt quá giới hạn API!\n\nAPI key của bạn đang sử dụng quota miễn phí (free tier) đã hết. Vui lòng:\n1. Kiểm tra API key tại: https://aistudio.google.com/apikey\n2. Đảm bảo API key được liên kết với billing account đã trả phí\n3. Tạo API key mới nếu cần thiết');
+        setExamError('⚠️ Đã vượt quá giới hạn API!\n\nVui lòng kiểm tra quota hoặc cấu hình proxy Gemini của bạn để tiếp tục sử dụng.');
       } else {
         setExamError(`Lỗi khi tạo đề thi: ${error?.message || 'Vui lòng thử lại sau!'}`);
       }
@@ -2443,7 +2443,7 @@ const App: React.FC = () => {
       } else {
         logger.log('No flashcards returned from API');
         setFlashcardError('❌ API không trả về kết quả. Có thể do:\n\n' +
-          '• API key chưa được cấu hình đúng\n' +
+          '• Proxy Gemini chưa được cấu hình đúng\n' +
           '• Chủ đề quá phức tạp hoặc không rõ ràng\n' +
           '• Vấn đề kết nối mạng\n\n' +
           '💡 Thử: Nhập chủ đề đơn giản hơn (VD: "Thơ Tây Tiến") và kiểm tra console để xem log chi tiết.');
@@ -2485,7 +2485,7 @@ const App: React.FC = () => {
       } else {
         logger.log('No mindmap returned from API');
         setMindmapError('❌ API không trả về kết quả. Có thể do:\n\n' +
-          '• API key chưa được cấu hình đúng\n' +
+          '• Proxy Gemini chưa được cấu hình đúng\n' +
           '• Chủ đề quá phức tạp hoặc không rõ ràng\n' +
           '• Vấn đề kết nối mạng\n\n' +
           '💡 Thử: Nhập chủ đề đơn giản hơn (VD: "Văn học lớp 10") và kiểm tra console để xem log chi tiết.');
@@ -3379,15 +3379,10 @@ const App: React.FC = () => {
                             <div className="flex-1">
                               <p className="font-semibold text-red-700 dark:text-red-300 mb-1">Lỗi tạo đề thi</p>
                               <p className="text-red-600 dark:text-red-400 text-sm whitespace-pre-line">{examError}</p>
-                              {examError.includes('API key') && (
-                                <a
-                                  href="https://aistudio.google.com/apikey"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-block mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                                >
-                                  Mở Google AI Studio để kiểm tra API key →
-                                </a>
+                              {examError.includes('VITE_GEMINI_PROXY_URL') && (
+                                <p className="inline-block mt-2 text-sm text-blue-600 dark:text-blue-400">
+                                  Vui lòng cấu hình VITE_GEMINI_PROXY_URL trong môi trường triển khai.
+                                </p>
                               )}
                             </div>
                           </div>

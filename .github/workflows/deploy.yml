@@ -38,9 +38,13 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          API_KEY: ${{ secrets.API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.API_KEY }}
+
+      - name: Verify dist has no API_KEY
+        run: |
+          if rg -n "API_KEY" dist; then
+            echo "Found API_KEY in dist output."
+            exit 1
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
