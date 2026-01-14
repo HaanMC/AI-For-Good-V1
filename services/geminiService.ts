@@ -64,15 +64,9 @@ const Type = {
 
 type Schema = Record<string, any>;
 
-const GEMINI_PROXY_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || "").trim();
+const GEMINI_PROXY_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || "https://aiforgood.haan-nguyen1310.workers.dev").trim();
 
-const getProxyUrl = () => {
-  if (!GEMINI_PROXY_URL) {
-    throw new Error("⚠️ Gemini proxy URL chưa được cấu hình. Vui lòng đặt VITE_GEMINI_PROXY_URL.");
-  }
-
-  return GEMINI_PROXY_URL.replace(/\/+$/, "");
-};
+const getProxyUrl = () => GEMINI_PROXY_URL.replace(/\/+$/, "");
 
 type GeminiGeneratePayload = {
   model: string;
