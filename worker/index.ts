@@ -2,7 +2,11 @@ type GeminiGeneratePayload = {
   model: string;
   contents: Array<Record<string, unknown>>;
   generationConfig?: Record<string, unknown>;
+  generation_config?: Record<string, unknown>;
   safetySettings?: Array<Record<string, unknown>>;
+  systemInstruction?: unknown;
+  systemPrompt?: string;
+  system?: string;
 };
 
 type GeminiProxyResponse = {
@@ -11,6 +15,8 @@ type GeminiProxyResponse = {
   raw?: unknown;
   message?: string;
   error?: string;
+  status?: number;
+  upstream?: unknown;
 };
 
 type Env = {
@@ -90,6 +96,36 @@ const extractText = (data: any): string => {
     .join("");
 };
 
+const isValidContents = (contents: unknown): contents is Array<{ role: string; parts: Array<{ text?: string }> }> => {
+  if (!Array.isArray(contents) || contents.length === 0) {
+    return false;
+  }
+
+  return contents.every((content) => {
+    if (!content || typeof content !== "object") {
+      return false;
+    }
+
+    const record = content as { role?: unknown; parts?: unknown };
+    if (typeof record.role !== "string") {
+      return false;
+    }
+
+    if (!Array.isArray(record.parts) || record.parts.length === 0) {
+      return false;
+    }
+
+    return record.parts.every((part) => {
+      if (!part || typeof part !== "object") {
+        return false;
+      }
+
+      const partRecord = part as { text?: unknown };
+      return typeof partRecord.text === "string" && partRecord.text.length > 0;
+    });
+  });
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") {
@@ -156,7 +192,49 @@ export default {
       );
     }
 
-    const { model, contents, generationConfig, safetySettings } = payload;
+    if (!isValidContents(payload.contents)) {
+      return jsonResponse(
+        { ok: false, error: "Invalid contents format. Expected role and parts with text." },
+        { status: 400 },
+        request,
+        env,
+      );
+    }
+
+    const { model, contents, safetySettings } = payload;
+
+    let sysText: string | null = null;
+    if (typeof payload.systemInstruction === "string") {
+      sysText = payload.systemInstruction;
+    } else if (typeof payload.systemPrompt === "string") {
+      sysText = payload.systemPrompt;
+    } else if (typeof payload.system === "string") {
+      sysText = payload.system;
+    }
+
+    const systemInstructionObj =
+      sysText !== null
+        ? { role: "system", parts: [{ text: sysText }] }
+        : typeof payload.systemInstruction === "object" && payload.systemInstruction !== null
+          ? payload.systemInstruction
+          : undefined;
+
+    const allowedGenKeys = new Set([
+      "temperature",
+      "topP",
+      "topK",
+      "maxOutputTokens",
+      "stopSequences",
+      "responseMimeType",
+      "responseSchema",
+      "candidateCount",
+      "presencePenalty",
+      "frequencyPenalty",
+    ]);
+    const gcIn = payload.generationConfig || payload.generation_config || {};
+    const generationConfig = Object.fromEntries(
+      Object.entries(gcIn).filter(([key]) => allowedGenKeys.has(key)),
+    );
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
 
     let upstreamResponse: Response;
@@ -168,8 +246,9 @@ export default {
         },
         body: JSON.stringify({
           contents,
-          generationConfig,
-          safetySettings: safetySettings ?? [],
+          generationConfig: Object.keys(generationConfig).length ? generationConfig : undefined,
+          safetySettings,
+          systemInstruction: systemInstructionObj,
         }),
       });
     } catch (error) {
@@ -194,13 +273,15 @@ export default {
     }
 
     if (!upstreamResponse.ok) {
+      const status = upstreamResponse.status || 502;
       return jsonResponse(
         {
           ok: false,
+          status,
+          upstream: data,
           error: data?.error?.message || "Gemini API request failed.",
-          raw: data,
         },
-        { status: upstreamResponse.status },
+        { status },
         request,
         env,
       );
