@@ -82,28 +82,40 @@ const buildSystemInstruction = (payload) => {
 };
 
 app.post("/generate", async (req, res) => {
-  if (requiredToken) {
-    const token = req.header("X-Proxy-Token");
-    if (token !== requiredToken) {
-      return res.status(403).json({ ok: false, error: "Unauthorized." });
-    }
+  const token = req.header("X-Proxy-Token");
+  if (token !== requiredToken) {
+    return res.status(401).json({
+      ok: false,
+      status: 401,
+      upstream: { error: "Unauthorized." },
+    });
   }
 
   if (!geminiApiKey) {
-    return res.status(500).json({ ok: false, error: "Missing GEMINI_API_KEY." });
+    return res.status(500).json({
+      ok: false,
+      status: 500,
+      upstream: { error: "Missing GEMINI_API_KEY." },
+    });
   }
 
   const payload = req.body || {};
   const { model, contents, safetySettings } = payload;
 
   if (!model || !contents) {
-    return res.status(400).json({ ok: false, error: "Missing model or contents." });
+    return res.status(400).json({
+      ok: false,
+      status: 400,
+      upstream: { error: "Missing model or contents." },
+    });
   }
 
   if (!isValidContents(contents)) {
-    return res
-      .status(400)
-      .json({ ok: false, error: "Invalid contents format. Expected role and parts with text." });
+    return res.status(400).json({
+      ok: false,
+      status: 400,
+      upstream: { error: "Invalid contents format. Expected role and parts with text." },
+    });
   }
 
   const generationConfig = buildGenerationConfig(payload);
@@ -125,21 +137,29 @@ app.post("/generate", async (req, res) => {
       }),
     });
   } catch (error) {
-    return res.status(502).json({ ok: false, error: "Failed to reach Gemini API." });
+    return res.status(502).json({
+      ok: false,
+      status: 502,
+      upstream: { error: "Failed to reach Gemini API." },
+    });
   }
 
   let data;
   try {
     data = await upstreamResponse.json();
   } catch (error) {
-    return res.status(502).json({ ok: false, error: "Gemini API returned invalid JSON." });
+    return res.status(502).json({
+      ok: false,
+      status: 502,
+      upstream: { error: "Gemini API returned invalid JSON." },
+    });
   }
 
   if (!upstreamResponse.ok) {
     return res.status(upstreamResponse.status).json({
       ok: false,
+      status: upstreamResponse.status,
       upstream: data,
-      error: data?.error?.message || "Gemini API request failed.",
     });
   }
 
@@ -148,6 +168,10 @@ app.post("/generate", async (req, res) => {
     text: extractText(data),
     raw: data,
   });
+});
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ ok: true });
 });
 
 const port = process.env.PORT || 8080;
