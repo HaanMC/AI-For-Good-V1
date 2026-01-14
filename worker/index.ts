@@ -28,10 +28,20 @@ const getAllowedOrigins = (env: Env): string[] => {
     .filter(Boolean);
 };
 
+const getAllowedOrigin = (request: Request, env: Env): string => {
+  const origin = request.headers.get("Origin") || "";
+  const allowList = getAllowedOrigins(env);
+
+  if (origin && allowList.includes(origin)) {
+    return origin;
+  }
+
+  return "";
+};
+
 const corsHeaders = (request: Request, env: Env): Headers => {
   const origin = request.headers.get("Origin") || "";
-  const allowlist = getAllowedOrigins(env);
-  const allowOrigin = allowlist.includes(origin) ? origin : allowlist[0] || "";
+  const allowOrigin = getAllowedOrigin(request, env);
 
   const headers = new Headers();
   headers.set("Access-Control-Allow-Origin", allowOrigin);
@@ -39,6 +49,7 @@ const corsHeaders = (request: Request, env: Env): Headers => {
   headers.set("Access-Control-Allow-Headers", "Content-Type");
   headers.set("Access-Control-Max-Age", "86400");
   headers.set("Vary", "Origin");
+  headers.set("Content-Type", "application/json; charset=utf-8");
   return headers;
 };
 
@@ -82,6 +93,14 @@ const extractText = (data: any): string => {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") {
+      const allowedOrigin = getAllowedOrigin(request, env);
+      if (!allowedOrigin) {
+        return new Response(null, {
+          status: 403,
+          headers: corsHeaders(request, env),
+        });
+      }
+
       return new Response(null, {
         status: 204,
         headers: corsHeaders(request, env),
@@ -95,6 +114,16 @@ export default {
 
     if (request.method !== "POST") {
       return withCors(new Response("Method Not Allowed", { status: 405 }), request, env);
+    }
+
+    const allowedOrigin = getAllowedOrigin(request, env);
+    if (!allowedOrigin) {
+      return jsonResponse(
+        { ok: false, error: "CORS origin not allowed" },
+        { status: 403 },
+        request,
+        env,
+      );
     }
 
     if (!env.GEMINI_API_KEY) {

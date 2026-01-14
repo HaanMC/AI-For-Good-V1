@@ -7,6 +7,6 @@
     "not_found_handling": "single-page-application"
   },
   "vars": {
-    "ALLOWED_ORIGINS": "https://haanmc.github.io,http://localhost:5173"
+    "ALLOWED_ORIGINS": "https://aiforgood.nguyenhaan.id.vn,https://haanmc.github.io,http://localhost:5173"
   }
 }
