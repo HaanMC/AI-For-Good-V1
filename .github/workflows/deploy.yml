@@ -38,6 +38,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_GEMINI_PROXY_URL: https://aiforgood.haan-nguyen1310.workers.dev
 
       - name: Verify dist has no API_KEY
         run: |

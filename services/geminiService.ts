@@ -64,14 +64,13 @@ const Type = {
 
 type Schema = Record<string, any>;
 
-const GEMINI_PROXY_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || "").trim();
-
 const getProxyUrl = () => {
-  if (!GEMINI_PROXY_URL) {
+  const proxyUrl = (import.meta.env.VITE_GEMINI_PROXY_URL || "").replace(/\/+$/, "");
+  if (!proxyUrl) {
     throw new Error("⚠️ Gemini proxy URL chưa được cấu hình. Vui lòng đặt VITE_GEMINI_PROXY_URL.");
   }
 
-  return GEMINI_PROXY_URL.replace(/\/+$/, "");
+  return proxyUrl;
 };
 
 type GeminiGeneratePayload = {
