@@ -17,21 +17,28 @@ type GeminiProxyResponse = {
   error?: string;
   status?: number;
   upstream?: unknown;
+  cfColo?: string;
+  cfCountry?: string;
+  origin?: string | null;
 };
 
 type Env = {
   GEMINI_API_KEY?: string;
   ALLOWED_ORIGINS?: string;
+  PROXY_UPSTREAM_URL?: string;
+  USE_UPSTREAM_PROXY?: string;
+  PROXY_TOKEN?: string;
 };
 
 const getAllowedOrigins = (env: Env): string[] => {
-  if (!env.ALLOWED_ORIGINS) {
-    return [];
-  }
+  const defaults = ["https://aiforgood.nguyenhaan.id.vn", "http://localhost:5173"];
+  const configured = env.ALLOWED_ORIGINS
+    ? env.ALLOWED_ORIGINS.split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : [];
 
-  return env.ALLOWED_ORIGINS.split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  return Array.from(new Set([...defaults, ...configured]));
 };
 
 const getAllowedOrigin = (request: Request, env: Env): string => {
@@ -82,6 +89,21 @@ const jsonResponse = (body: GeminiProxyResponse, init: ResponseInit, request: Re
     headers,
   });
   return withCors(response, request, env);
+};
+
+const getCfDebug = (request: Request): { cfColo?: string; cfCountry?: string } => {
+  const cf = request.cf as { colo?: string; country?: string } | undefined;
+  return {
+    cfColo: cf?.colo,
+    cfCountry: cf?.country,
+  };
+};
+
+const isTruthy = (value?: string): boolean => {
+  if (!value) {
+    return false;
+  }
+  return ["true", "1", "yes"].includes(value.toLowerCase());
 };
 
 const extractText = (data: any): string => {
@@ -144,6 +166,19 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname === "/debug" && request.method === "GET") {
+      return jsonResponse(
+        {
+          ok: true,
+          ...getCfDebug(request),
+          origin: request.headers.get("Origin"),
+        },
+        { status: 200 },
+        request,
+        env,
+      );
+    }
+
     if (url.pathname !== "/generate") {
       return withCors(new Response("Not Found", { status: 404 }), request, env);
     }
@@ -162,9 +197,20 @@ export default {
       );
     }
 
-    if (!env.GEMINI_API_KEY) {
+    const cfDebug = getCfDebug(request);
+    const useUpstreamProxy = env.PROXY_UPSTREAM_URL
+      ? env.USE_UPSTREAM_PROXY === undefined
+        ? true
+        : isTruthy(env.USE_UPSTREAM_PROXY)
+      : false;
+
+    if (!useUpstreamProxy && !env.GEMINI_API_KEY) {
       return jsonResponse(
-        { ok: false, error: "Missing GEMINI_API_KEY in worker environment." },
+        {
+          ok: false,
+          error: "Missing GEMINI_API_KEY in worker environment.",
+          ...cfDebug,
+        },
         { status: 500 },
         request,
         env,
@@ -176,7 +222,7 @@ export default {
       payload = (await request.json()) as GeminiGeneratePayload;
     } catch (error) {
       return jsonResponse(
-        { ok: false, error: "Invalid JSON payload." },
+        { ok: false, error: "Invalid JSON payload.", ...cfDebug },
         { status: 400 },
         request,
         env,
@@ -185,7 +231,7 @@ export default {
 
     if (!payload?.model || !payload?.contents) {
       return jsonResponse(
-        { ok: false, error: "Missing model or contents." },
+        { ok: false, error: "Missing model or contents.", ...cfDebug },
         { status: 400 },
         request,
         env,
@@ -194,7 +240,7 @@ export default {
 
     if (!isValidContents(payload.contents)) {
       return jsonResponse(
-        { ok: false, error: "Invalid contents format. Expected role and parts with text." },
+        { ok: false, error: "Invalid contents format. Expected role and parts with text.", ...cfDebug },
         { status: 400 },
         request,
         env,
@@ -202,6 +248,81 @@ export default {
     }
 
     const { model, contents, safetySettings } = payload;
+
+    if (useUpstreamProxy) {
+      if (!env.PROXY_UPSTREAM_URL) {
+        return jsonResponse(
+          { ok: false, error: "Missing PROXY_UPSTREAM_URL.", ...cfDebug },
+          { status: 500 },
+          request,
+          env,
+        );
+      }
+
+      let upstreamResponse: Response;
+      try {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (env.PROXY_TOKEN) {
+          headers["X-Proxy-Token"] = env.PROXY_TOKEN;
+        }
+        upstreamResponse = await fetch(env.PROXY_UPSTREAM_URL, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        return jsonResponse(
+          { ok: false, error: "Failed to reach upstream proxy.", ...cfDebug },
+          { status: 502 },
+          request,
+          env,
+        );
+      }
+
+      let upstreamData: any = null;
+      try {
+        upstreamData = await upstreamResponse.json();
+      } catch (error) {
+        return jsonResponse(
+          { ok: false, error: "Upstream proxy returned invalid JSON.", ...cfDebug },
+          { status: 502 },
+          request,
+          env,
+        );
+      }
+
+      if (!upstreamResponse.ok || upstreamData?.ok === false) {
+        const errorMessage =
+          upstreamData?.error ||
+          upstreamData?.message ||
+          upstreamData?.upstream?.error?.message ||
+          "Upstream proxy request failed.";
+        return jsonResponse(
+          {
+            ...upstreamData,
+            ok: false,
+            status: upstreamResponse.status,
+            error: errorMessage,
+            ...cfDebug,
+          },
+          { status: upstreamResponse.status || 502 },
+          request,
+          env,
+        );
+      }
+
+      return jsonResponse(
+        {
+          ...upstreamData,
+          ...cfDebug,
+        },
+        { status: upstreamResponse.status || 200 },
+        request,
+        env,
+      );
+    }
 
     let sysText: string | null = null;
     if (typeof payload.systemInstruction === "string") {
@@ -253,7 +374,7 @@ export default {
       });
     } catch (error) {
       return jsonResponse(
-        { ok: false, error: "Failed to reach Gemini API." },
+        { ok: false, error: "Failed to reach Gemini API.", ...cfDebug },
         { status: 502 },
         request,
         env,
@@ -265,7 +386,7 @@ export default {
       data = await upstreamResponse.json();
     } catch (error) {
       return jsonResponse(
-        { ok: false, error: "Gemini API returned invalid JSON." },
+        { ok: false, error: "Gemini API returned invalid JSON.", ...cfDebug },
         { status: 502 },
         request,
         env,
@@ -280,6 +401,7 @@ export default {
           status,
           upstream: data,
           error: data?.error?.message || "Gemini API request failed.",
+          ...cfDebug,
         },
         { status },
         request,
@@ -293,6 +415,7 @@ export default {
         ok: true,
         text,
         raw: data,
+        ...cfDebug,
       },
       { status: 200 },
       request,
