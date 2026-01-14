@@ -76,7 +76,13 @@ const getCfDebug = (request: Request): { colo?: string; country?: string } => {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
     if (request.method === "OPTIONS") {
+      if (url.pathname !== "/generate") {
+        return withCors(new Response("Not Found", { status: 404 }), request, env);
+      }
+
       const allowedOrigin = getAllowedOrigin(request, env);
       if (!allowedOrigin) {
         return new Response(null, {
@@ -91,7 +97,6 @@ export default {
       });
     }
 
-    const url = new URL(request.url);
     if (url.pathname === "/debug" && request.method === "GET") {
       return jsonResponse(
         {
