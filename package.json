@@ -7,10 +7,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:dist-secrets": "rg -n \"API_KEY\" dist && { echo \"Found API_KEY in dist output.\"; exit 1; } || exit 0"
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
     "lucide-react": "^0.555.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
