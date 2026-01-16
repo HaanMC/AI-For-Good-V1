@@ -5,6 +5,7 @@ import { EmptyState } from '../ui';
 import { MessageSquare, Sparkles, Paperclip, Mic, Copy, Send } from 'lucide-react';
 import { sendMessageToGemini, extractTextFromImage } from '../../../services/geminiService';
 import { checkContentSafety, createSupportiveResponse } from '../../../utils/contentSafetyFilter';
+import { showToast } from '../../../utils/toast';
 
 interface ChatViewProps {
   messages: Message[];
@@ -126,6 +127,7 @@ const ChatView: React.FC<ChatViewProps> = ({
       onSaveSession?.(messages);
     } catch (error) {
       console.error('Chat error:', error);
+      showToast("Couldn't reach AI. Try again.");
       setMessages(prev => {
         const filtered = prev.filter(m => !m.isLoading);
         return [

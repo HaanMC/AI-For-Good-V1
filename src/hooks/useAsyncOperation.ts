@@ -171,9 +171,9 @@ export function useAsyncOperation<T>(options: AsyncOperationOptions = {}) {
       if (err?.message === 'TIMEOUT') {
         errorMessage = timeoutMessage;
       } else if (err?.message?.includes('QUOTA_EXCEEDED') || err?.message?.includes('quota')) {
-        errorMessage = 'Đã hết quota API. Vui lòng kiểm tra quota hoặc proxy Gemini.';
-      } else if (err?.message?.includes('VITE_GEMINI_PROXY_URL')) {
-        errorMessage = 'Gemini proxy chưa được cấu hình. Vui lòng kiểm tra VITE_GEMINI_PROXY_URL.';
+        errorMessage = 'Đã hết quota API. Vui lòng kiểm tra quota API.';
+      } else if (err?.message?.includes('GEMINI_KEY_MISSING')) {
+        errorMessage = 'Gemini API key chưa được cấu hình. Vui lòng kiểm tra cấu hình triển khai.';
       } else if (err?.message?.includes('network') || err?.message?.includes('fetch') || err?.message?.includes('Failed to fetch')) {
         errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.';
       } else if (err?.message) {

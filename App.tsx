@@ -55,8 +55,7 @@ import {
   Camera,
   SwitchCamera,
   ImageIcon,
-  Trash2,
-  Clock
+  Trash2
 } from 'lucide-react';
 import { AppMode, Message, Sender, UploadedFile, ExamStructure, GradingResult, DictionaryEntry, WritingFeedback, CharacterProfile, UserProfile, ExamLevel, ExamType, ExamSessionMode, EXAM_TYPE_CONFIGS, QuestionFeedback, ExamHistory, Flashcard, MindmapNode, StudyPlan, StudyPlanOptions, DEFAULT_STUDY_PLAN_OPTIONS, ChatSession } from './types';
 import {
@@ -74,6 +73,7 @@ import {
   extractTextFromImage
 } from './services/geminiService';
 import logger from './utils/logger';
+import { showToast } from './utils/toast';
 import {
   GRADE_10_WEAKNESS_OPTIONS,
   GRADE_10_CHARACTERS,
@@ -1835,6 +1835,8 @@ const App: React.FC = () => {
       }
     } catch (error) {
       logger.error('Error retrying message:', error);
+      console.error('Error retrying message:', error);
+      showToast("Couldn't reach AI. Try again.");
       // Restore the original message on error
       if (mode === AppMode.Roleplay) {
         setRoleplayMessages(currentMessages);
@@ -2111,33 +2113,39 @@ const App: React.FC = () => {
     setFiles([]); // Clear files after sending
     setIsLoading(true);
 
-    if (mode === AppMode.Roleplay && selectedChar) {
-      const history = roleplayMessages.map(m => ({
-        role: m.sender === Sender.User ? 'user' : 'model',
-        parts: [{ text: m.text }]
-      }));
-      const response = await sendMessageAsCharacter(newMessage.text, history, selectedChar.name, selectedChar.work, isFastMode);
-       setRoleplayMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        text: response,
-        sender: Sender.Bot,
-        timestamp: Date.now()
-      }]);
-    } else {
-      const history = messages.map(m => ({
-        role: m.sender === Sender.User ? 'user' : 'model',
-        parts: [{ text: m.text }]
-      }));
-      const response = await sendMessageToGemini(newMessage.text, history, tempFiles, userProfile || undefined, isFastMode);
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        text: response,
-        sender: Sender.Bot,
-        timestamp: Date.now()
-      }]);
+    try {
+      if (mode === AppMode.Roleplay && selectedChar) {
+        const history = roleplayMessages.map(m => ({
+          role: m.sender === Sender.User ? 'user' : 'model',
+          parts: [{ text: m.text }]
+        }));
+        const response = await sendMessageAsCharacter(newMessage.text, history, selectedChar.name, selectedChar.work, isFastMode);
+        setRoleplayMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          text: response,
+          sender: Sender.Bot,
+          timestamp: Date.now()
+        }]);
+      } else {
+        const history = messages.map(m => ({
+          role: m.sender === Sender.User ? 'user' : 'model',
+          parts: [{ text: m.text }]
+        }));
+        const response = await sendMessageToGemini(newMessage.text, history, tempFiles, userProfile || undefined, isFastMode);
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          text: response,
+          sender: Sender.Bot,
+          timestamp: Date.now()
+        }]);
+      }
+    } catch (error) {
+      logger.error('Chat error:', error);
+      console.error('Chat error:', error);
+      showToast("Couldn't reach AI. Try again.");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   // Camera capture handler for OCR
@@ -2244,7 +2252,7 @@ const App: React.FC = () => {
     } catch (error: any) {
       // Check for quota error
       if (error?.message?.includes('QUOTA_EXCEEDED')) {
-        setExamError('⚠️ Đã vượt quá giới hạn API!\n\nVui lòng kiểm tra quota hoặc cấu hình proxy Gemini của bạn để tiếp tục sử dụng.');
+        setExamError('⚠️ Đã vượt quá giới hạn API!\n\nVui lòng kiểm tra quota API để tiếp tục sử dụng.');
       } else {
         setExamError(`Lỗi khi tạo đề thi: ${error?.message || 'Vui lòng thử lại sau!'}`);
       }
@@ -3379,9 +3387,9 @@ const App: React.FC = () => {
                             <div className="flex-1">
                               <p className="font-semibold text-red-700 dark:text-red-300 mb-1">Lỗi tạo đề thi</p>
                               <p className="text-red-600 dark:text-red-400 text-sm whitespace-pre-line">{examError}</p>
-                              {examError.includes('VITE_GEMINI_PROXY_URL') && (
+                              {examError.includes('GEMINI_KEY_MISSING') && (
                                 <p className="inline-block mt-2 text-sm text-blue-600 dark:text-blue-400">
-                                  Vui lòng cấu hình VITE_GEMINI_PROXY_URL trong môi trường triển khai.
+                                  Vui lòng cấu hình Gemini API key trong môi trường triển khai.
                                 </p>
                               )}
                             </div>
