@@ -1,6 +1,7 @@
 import logger from "../utils/logger";
 import { checkContentSafety, SafetyCheckResult } from "../utils/contentSafetyFilter";
 import { normalizeViText } from "../src/utils/textNormalize";
+import { getApiKey, getGeminiEndpoint } from "../src/lib/ai/geminiClient";
 import {
   ExamStructure,
   UploadedFile,
@@ -64,10 +65,6 @@ const Type = {
 
 type Schema = Record<string, any>;
 
-const GEMINI_PROXY_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || "https://aiforgood.haan-nguyen1310.workers.dev").trim();
-
-const getProxyUrl = () => GEMINI_PROXY_URL.replace(/\/+$/, "");
-
 type GeminiGeneratePayload = {
   model: string;
   contents: Array<Record<string, any>>;
@@ -83,8 +80,10 @@ type GeminiProxyResponse = {
   error?: string;
 };
 
-const getProxyErrorMessage = (data: GeminiProxyResponse | null, status: number) => {
+const getApiErrorMessage = (data: GeminiProxyResponse | null, status: number) => {
   const upstream =
+    (data as any)?.error?.message ||
+    (data as any)?.error?.status ||
     data?.error ||
     data?.message ||
     data?.raw?.error?.message ||
@@ -95,18 +94,20 @@ const getProxyErrorMessage = (data: GeminiProxyResponse | null, status: number) 
     return upstream;
   }
 
-  return `Lỗi proxy Gemini (HTTP ${status}).`;
+  return `Lỗi Gemini API (HTTP ${status}).`;
 };
 
 const generateContent = async (payload: GeminiGeneratePayload): Promise<GeminiProxyResponse> => {
-  const proxyUrl = getProxyUrl();
-  const response = await fetch(`${proxyUrl}/generate`, {
+  const key = getApiKey();
+  console.log("[AI] key length:", key?.length);
+  const response = await fetch(getGeminiEndpoint(key), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      ...payload,
+      contents: payload.contents,
+      generationConfig: payload.generationConfig,
       safetySettings: payload.safetySettings ?? [],
     }),
   });
@@ -115,17 +116,30 @@ const generateContent = async (payload: GeminiGeneratePayload): Promise<GeminiPr
   try {
     data = (await response.json()) as GeminiProxyResponse;
   } catch (error) {
-    logger.error("Gemini proxy returned invalid JSON", error);
+    logger.error("Gemini API returned invalid JSON", error);
   }
 
-  if (!response.ok || !data?.ok) {
-    const message = getProxyErrorMessage(data, response.status);
-    const proxyError = new Error(message);
-    (proxyError as any).status = response.status;
-    throw proxyError;
+  if (!response.ok) {
+    const message = getApiErrorMessage(data, response.status);
+    const apiError = new Error(message);
+    (apiError as any).status = response.status;
+    throw apiError;
   }
 
-  return data;
+  const text = (data as any)?.candidates?.[0]?.content?.parts
+    ?.map((part: { text?: string }) => part?.text)
+    .filter(Boolean)
+    .join("");
+
+  if (!text) {
+    throw new Error("Gemini API response missing text");
+  }
+
+  return {
+    ok: true,
+    text,
+    raw: data,
+  };
 };
 
 const MODEL_FAST = "models/gemini-2.5-flash"; // Suy nghĩ nhanh
@@ -354,8 +368,8 @@ const isQuotaExhaustedError = (error: any): boolean => {
   );
 };
 
-const isProxyUrlMissingError = (error: any): boolean => {
-  return error?.message?.includes('VITE_GEMINI_PROXY_URL');
+const isApiKeyMissingError = (error: any): boolean => {
+  return error?.message?.includes('GEMINI_KEY_MISSING');
 };
 
 // Retry logic helper with rate limit awareness
@@ -387,7 +401,7 @@ const retryWithBackoff = async <T>(
       // Retrying will just waste requests and hit rate limits faster
       if (isQuotaExhaustedError(error)) {
         logger.error('❌ Quota exhausted - không retry vì quota đã hết hoàn toàn');
-        throw new Error('QUOTA_EXCEEDED: API quota đã hết. Vui lòng kiểm tra quota hoặc cấu hình proxy Gemini.');
+        throw new Error('QUOTA_EXCEEDED: API quota đã hết. Vui lòng kiểm tra quota API.');
       }
 
       if (isLastAttempt) {
@@ -820,23 +834,7 @@ Chỉ trả lời các câu hỏi chung về kỹ năng viết, phương pháp h
     return responseText;
   } catch (err: any) {
     logger.error("sendMessageToGemini error", err);
-
-    // Better error messages based on error type
-    if (isProxyUrlMissingError(err)) {
-      return "⚠️ Gemini proxy chưa được cấu hình. Vui lòng đặt VITE_GEMINI_PROXY_URL.";
-    }
-    // Check quota exhausted first (more specific)
-    if (isQuotaExhaustedError(err) || err?.message?.includes('QUOTA_EXCEEDED')) {
-      return "⚠️ Đã hết quota API!\n\nVui lòng kiểm tra quota hoặc cấu hình proxy Gemini để tiếp tục sử dụng.";
-    }
-    if (isRateLimitError(err)) {
-      return "⚠️ Đã vượt quá giới hạn tạm thời. Vui lòng đợi vài phút và thử lại.";
-    }
-    if (err?.message?.includes('network') || err?.message?.includes('fetch')) {
-      return "⚠️ Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.";
-    }
-
-    return "⚠️ Đã xảy ra lỗi khi kết nối tới AI. Vui lòng thử lại sau.";
+    throw err;
   }
 };
 
@@ -1097,15 +1095,15 @@ Trả về đúng cấu trúc JSON theo schema đã khai báo.
       logger.error("Error message:", err.message);
     }
 
-    // Check for proxy config error
-    if (isProxyUrlMissingError(err)) {
+    // Check for API key config error
+    if (isApiKeyMissingError(err)) {
       throw err;
     }
 
     // Check for quota/rate limit errors and throw with specific message
     const errorMessage = err?.message?.toLowerCase() || '';
     if (errorMessage.includes('quota') || errorMessage.includes('resource_exhausted') || errorMessage.includes('rate') || errorMessage.includes('free_tier')) {
-      throw new Error('QUOTA_EXCEEDED: Đã vượt quá giới hạn API. Vui lòng kiểm tra quota hoặc proxy Gemini của bạn.');
+      throw new Error('QUOTA_EXCEEDED: Đã vượt quá giới hạn API. Vui lòng kiểm tra quota API.');
     }
 
     return null;
@@ -1474,8 +1472,8 @@ NHÂN VẬT/TÁC GIẢ:
     logger.error("sendMessageAsCharacter error", err);
 
     // Better error messages
-    if (isProxyUrlMissingError(err)) {
-      return "⚠️ Gemini proxy chưa được cấu hình. Vui lòng đặt VITE_GEMINI_PROXY_URL.";
+    if (isApiKeyMissingError(err)) {
+      return "Nhân vật đang bối rối, hãy hỏi lại theo cách khác nhé.";
     }
 
     return "Nhân vật đang bối rối, hãy hỏi lại theo cách khác nhé.";
@@ -1593,8 +1591,8 @@ CHỈ TRẢ VỀ JSON, KHÔNG CÓ TEXT THÊM.
     logger.error("generateFlashcards error", err);
 
     // Check for specific error types
-    if (isProxyUrlMissingError(err)) {
-      logger.error("Gemini proxy URL missing");
+    if (isApiKeyMissingError(err)) {
+      logger.error("Gemini API key missing");
     } else if (err?.message?.includes('network') || err?.message?.includes('fetch')) {
       logger.error("Network error - check internet connection");
     }
@@ -1735,8 +1733,8 @@ CHỈ TRẢ VỀ JSON, KHÔNG CÓ TEXT THÊM.
     logger.error("generateMindmap error", err);
 
     // Check for specific error types
-    if (isProxyUrlMissingError(err)) {
-      logger.error("Gemini proxy URL missing");
+    if (isApiKeyMissingError(err)) {
+      logger.error("Gemini API key missing");
     } else if (err?.message?.includes('network') || err?.message?.includes('fetch')) {
       logger.error("Network error - check internet connection");
     }
@@ -1815,8 +1813,8 @@ Nếu không thể đọc được gì, trả về: "[Không thể đọc đư�
     logger.error("extractTextFromImage error", err);
 
     // Better error messages based on error type
-    if (isProxyUrlMissingError(err)) {
-      return "⚠️ Gemini proxy chưa được cấu hình. Vui lòng đặt VITE_GEMINI_PROXY_URL.";
+    if (isApiKeyMissingError(err)) {
+      return "Xin lỗi, hiện tại tôi không thể phản hồi. Vui lòng thử lại sau.";
     }
     if (err?.message?.includes('quota') || err?.message?.includes('limit')) {
       return "⚠️ Đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau.";
