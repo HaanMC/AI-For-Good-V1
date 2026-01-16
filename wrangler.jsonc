@@ -1,5 +1,5 @@
 {
-  "name": "aiforgood-frontend",
+  "name": "aiforgood",
   "compatibility_date": "2026-01-14",
   "main": "worker/index.ts",
   "assets": {
