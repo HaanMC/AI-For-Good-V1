@@ -127,14 +127,25 @@ const ChatView: React.FC<ChatViewProps> = ({
       onSaveSession?.(messages);
     } catch (error) {
       console.error('Chat error:', error);
-      showToast("Couldn't reach AI. Try again.");
+      const apiKeyNotice =
+        'API key expired/invalid. Update the GitHub secret API_KEY and redeploy.\n' +
+        'API key hết hạn/không hợp lệ. Hãy cập nhật GitHub secret API_KEY và redeploy.';
+      const isApiKeyInvalid = Boolean((error as { apiKeyInvalid?: boolean })?.apiKeyInvalid);
+
+      if (isApiKeyInvalid) {
+        showToast(apiKeyNotice);
+      } else {
+        showToast("Couldn't reach AI. Try again.");
+      }
       setMessages(prev => {
         const filtered = prev.filter(m => !m.isLoading);
         return [
           ...filtered,
           {
             id: `error_${Date.now()}`,
-            text: 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.',
+            text: isApiKeyInvalid
+              ? apiKeyNotice
+              : 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.',
             sender: Sender.Bot,
             timestamp: Date.now()
           }
