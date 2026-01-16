@@ -1,7 +1,7 @@
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 import logger from "../utils/logger";
 import { checkContentSafety, SafetyCheckResult } from "../utils/contentSafetyFilter";
 import { normalizeViText } from "../src/utils/textNormalize";
-import { getApiKey, getGeminiEndpoint } from "../src/lib/ai/geminiClient";
 import {
   ExamStructure,
   UploadedFile,
@@ -54,122 +54,18 @@ export { searchTerms } from "../data/staticDictionary";
 export { checkSgkAvailability, quickSearchSgk, getAvailableTopics } from "../src/ai/sgkAiService";
 export { isSgkReady, getSgkStatus, getTopicCandidates, findSimilarTopics } from "../src/sgk";
 
-const Type = {
-  OBJECT: "OBJECT",
-  STRING: "STRING",
-  INTEGER: "INTEGER",
-  NUMBER: "NUMBER",
-  ARRAY: "ARRAY",
-  BOOLEAN: "BOOLEAN",
-} as const;
+// Validate API key exists (from environment variable)
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+  logger.error("⚠️ GEMINI_API_KEY is not configured. Please set the API_KEY environment variable.");
+}
 
-type Schema = Record<string, any>;
+const ai = new GoogleGenAI({ apiKey: API_KEY || "" });
 
-type GeminiGeneratePayload = {
-  model: string;
-  contents: Array<Record<string, any>>;
-  generationConfig?: Record<string, any>;
-  safetySettings?: Array<Record<string, any>>;
-};
-
-type GeminiProxyResponse = {
-  ok: boolean;
-  text?: string;
-  raw?: any;
-  message?: string;
-  error?: string;
-};
-
-const getApiErrorMessage = (data: GeminiProxyResponse | null, status: number) => {
-  const upstream =
-    (data as any)?.error?.message ||
-    (data as any)?.error?.status ||
-    data?.error ||
-    data?.message ||
-    data?.raw?.error?.message ||
-    data?.raw?.error?.status ||
-    data?.raw?.error?.details?.[0]?.message;
-
-  if (upstream) {
-    return upstream;
-  }
-
-  return `Lỗi Gemini API (HTTP ${status}).`;
-};
-
-const isApiKeyInvalidError = (data: GeminiProxyResponse | null) => {
-  const messages = [
-    (data as any)?.error?.message,
-    (data as any)?.message,
-    (data as any)?.error,
-    (data as any)?.raw?.error?.message,
-    (data as any)?.raw?.error?.details?.[0]?.message,
-  ]
-    .filter((message): message is string => typeof message === "string")
-    .map((message) => message.toLowerCase());
-
-  const hasExpiredMessage = messages.some((message) => message.includes("api key expired"));
-  const reason =
-    (data as any)?.error?.details?.[0]?.metadata?.reason ||
-    (data as any)?.raw?.error?.details?.[0]?.metadata?.reason;
-
-  return hasExpiredMessage || reason === "API_KEY_INVALID";
-};
-
-const generateContent = async (payload: GeminiGeneratePayload): Promise<GeminiProxyResponse> => {
-  const key = getApiKey();
-  console.log("[AI] key length:", key?.length);
-  const response = await fetch(getGeminiEndpoint(key), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: payload.contents,
-      generationConfig: payload.generationConfig,
-      safetySettings: payload.safetySettings ?? [],
-    }),
-  });
-
-  let data: GeminiProxyResponse | null = null;
-  try {
-    data = (await response.json()) as GeminiProxyResponse;
-  } catch (error) {
-    logger.error("Gemini API returned invalid JSON", error);
-  }
-
-  if (!response.ok) {
-    console.error("Gemini API error response", {
-      status: response.status,
-      data,
-    });
-    const message = getApiErrorMessage(data, response.status);
-    const apiError = new Error(message);
-    (apiError as any).status = response.status;
-    (apiError as any).apiKeyInvalid = isApiKeyInvalidError(data);
-    throw apiError;
-  }
-
-  const text = (data as any)?.candidates?.[0]?.content?.parts
-    ?.map((part: { text?: string }) => part?.text)
-    .filter(Boolean)
-    .join("");
-
-  if (!text) {
-    throw new Error("Gemini API response missing text");
-  }
-
-  return {
-    ok: true,
-    text,
-    raw: data,
-  };
-};
-
-const MODEL_FAST = "models/gemini-2.5-flash"; // Suy nghĩ nhanh
-const MODEL_DICTIONARY = "models/gemini-2.5-flash"; // Tra cứu từ điển
-const MODEL_COMPLEX = "models/gemini-2.5-pro"; // Xử lý phức tạp
-const MODEL_THINKING = "models/gemini-2.5-pro"; // Suy nghĩ sâu
+const MODEL_FAST = "gemini-2.5-flash"; // Suy nghĩ nhanh
+const MODEL_DICTIONARY = "gemini-2.5-flash"; // Tra cứu từ điển
+const MODEL_COMPLEX = "gemini-2.5-pro"; // Xử lý phức tạp
+const MODEL_THINKING = "gemini-2.5-pro"; // Suy nghĩ sâu
 
 // Danh sách các trang từ điển uy tín được phép tìm kiếm
 const TRUSTED_DICTIONARY_SITES = [
@@ -392,10 +288,6 @@ const isQuotaExhaustedError = (error: any): boolean => {
   );
 };
 
-const isApiKeyMissingError = (error: any): boolean => {
-  return error?.message?.includes('GEMINI_KEY_MISSING');
-};
-
 // Retry logic helper with rate limit awareness
 const retryWithBackoff = async <T>(
   fn: () => Promise<T>,
@@ -417,7 +309,7 @@ const retryWithBackoff = async <T>(
       const isLastAttempt = i === effectiveMaxRetries - 1;
 
       // Don't retry on certain errors - throw immediately
-      if (error?.message?.includes('unauthorized') || error?.message?.includes('forbidden')) {
+      if (error?.message?.includes('API key') || error?.message?.includes('unauthorized')) {
         throw error;
       }
 
@@ -425,7 +317,7 @@ const retryWithBackoff = async <T>(
       // Retrying will just waste requests and hit rate limits faster
       if (isQuotaExhaustedError(error)) {
         logger.error('❌ Quota exhausted - không retry vì quota đã hết hoàn toàn');
-        throw new Error('QUOTA_EXCEEDED: API quota đã hết. Vui lòng kiểm tra quota API.');
+        throw new Error('QUOTA_EXCEEDED: API quota đã hết. Vui lòng kiểm tra API key và billing account tại https://aistudio.google.com/apikey');
       }
 
       if (isLastAttempt) {
@@ -775,7 +667,7 @@ Chỉ trả lời các câu hỏi chung về kỹ năng viết, phương pháp h
 
     // Helper function to make API call with specified model
     const makeApiCall = async (model: string, temp: number) => {
-      return await generateContent({
+      return await ai.models.generateContent({
         model,
         contents: [
           ...history,
@@ -784,11 +676,10 @@ Chỉ trả lời các câu hỏi chung về kỹ năng viết, phương pháp h
             parts: [...fileParts, { text: message }],
           },
         ],
-        generationConfig: {
+        config: {
           systemInstruction,
           temperature: temp,
         },
-        safetySettings: [],
       });
     };
 
@@ -858,7 +749,23 @@ Chỉ trả lời các câu hỏi chung về kỹ năng viết, phương pháp h
     return responseText;
   } catch (err: any) {
     logger.error("sendMessageToGemini error", err);
-    throw err;
+
+    // Better error messages based on error type
+    if (err?.message?.includes('API key')) {
+      return "⚠️ Lỗi API Key. Vui lòng kiểm tra cấu hình API key trong file .env";
+    }
+    // Check quota exhausted first (more specific)
+    if (isQuotaExhaustedError(err) || err?.message?.includes('QUOTA_EXCEEDED')) {
+      return "⚠️ Đã hết quota API!\n\nAPI key của bạn đang sử dụng quota miễn phí đã hết. Vui lòng:\n1. Kiểm tra API key tại: https://aistudio.google.com/apikey\n2. Đảm bảo API key liên kết với billing account đã trả phí\n3. Tạo API key mới nếu cần";
+    }
+    if (isRateLimitError(err)) {
+      return "⚠️ Đã vượt quá giới hạn tạm thời. Vui lòng đợi vài phút và thử lại.";
+    }
+    if (err?.message?.includes('network') || err?.message?.includes('fetch')) {
+      return "⚠️ Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.";
+    }
+
+    return "⚠️ Đã xảy ra lỗi khi kết nối tới AI. Vui lòng thử lại sau.";
   }
 };
 
@@ -1034,7 +941,7 @@ Trả về đúng cấu trúc JSON theo schema đã khai báo.
 
     // Use retry logic for API call
     const response = await retryWithBackoff(async () => {
-      return await generateContent({
+      return await ai.models.generateContent({
         model: MODEL_COMPLEX,
         contents: [
           {
@@ -1042,13 +949,12 @@ Trả về đúng cấu trúc JSON theo schema đã khai báo.
             parts: [...fileParts, { text: prompt }],
           },
         ],
-        generationConfig: {
+        config: {
           systemInstruction: BASE_SYSTEM_INSTRUCTION,
           responseMimeType: "application/json",
           responseSchema: schema,
           temperature: 0.5,
         },
-        safetySettings: [],
       });
     });
 
@@ -1119,15 +1025,10 @@ Trả về đúng cấu trúc JSON theo schema đã khai báo.
       logger.error("Error message:", err.message);
     }
 
-    // Check for API key config error
-    if (isApiKeyMissingError(err)) {
-      throw err;
-    }
-
     // Check for quota/rate limit errors and throw with specific message
     const errorMessage = err?.message?.toLowerCase() || '';
     if (errorMessage.includes('quota') || errorMessage.includes('resource_exhausted') || errorMessage.includes('rate') || errorMessage.includes('free_tier')) {
-      throw new Error('QUOTA_EXCEEDED: Đã vượt quá giới hạn API. Vui lòng kiểm tra quota API.');
+      throw new Error('QUOTA_EXCEEDED: Đã vượt quá giới hạn API. Vui lòng kiểm tra API key và billing account của bạn tại https://aistudio.google.com/apikey');
     }
 
     return null;
@@ -1192,15 +1093,14 @@ Trả về JSON theo schema đã khai báo cho GRADING_SCHEMA.
 
     // Use retry logic for API call
     const response = await retryWithBackoff(async () => {
-      return await generateContent({
+      return await ai.models.generateContent({
         model: MODEL_COMPLEX,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
+        config: {
           responseMimeType: "application/json",
           responseSchema: GRADING_SCHEMA,
           temperature: 0.4,
         },
-        safetySettings: [],
       });
     });
 
@@ -1330,14 +1230,13 @@ Trả về CHÍNH XÁC JSON format sau (không có text thêm):
 
     // Use Google Search tool - Note: Cannot use responseMimeType with tools
     const response = await retryWithBackoff(async () => {
-      return await generateContent({
+      return await ai.models.generateContent({
         model: MODEL_DICTIONARY,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
+        config: {
           temperature: 0.2, // Lower temperature for more accurate dictionary results
           tools: [{ googleSearch: {} }], // Enable web search for dictionary only
         },
-        safetySettings: [],
       });
     });
 
@@ -1402,15 +1301,14 @@ Trả về JSON đúng WritingFeedback (rubric, critique, improvedVersion, bette
 
     // Use retry logic for API call
     const response = await retryWithBackoff(async () => {
-      return await generateContent({
+      return await ai.models.generateContent({
         model: MODEL_COMPLEX,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
+        config: {
           responseMimeType: "application/json",
           responseSchema: WRITING_FEEDBACK_SCHEMA,
           temperature: 0.6,
         },
-        safetySettings: [],
       });
     });
 
@@ -1471,17 +1369,16 @@ NHÂN VẬT/TÁC GIẢ:
 
     // Use retry logic for API call
     const response = await retryWithBackoff(async () => {
-      return await generateContent({
+      return await ai.models.generateContent({
         model: useFastModel ? MODEL_FAST : MODEL_COMPLEX,
         contents: [
           ...history,
           { role: "user", parts: [{ text: message }] },
         ],
-        generationConfig: {
+        config: {
           systemInstruction,
           temperature: 0.8,
         },
-        safetySettings: [],
       });
     });
 
@@ -1496,8 +1393,8 @@ NHÂN VẬT/TÁC GIẢ:
     logger.error("sendMessageAsCharacter error", err);
 
     // Better error messages
-    if (isApiKeyMissingError(err)) {
-      return "Nhân vật đang bối rối, hãy hỏi lại theo cách khác nhé.";
+    if (err?.message?.includes('API key')) {
+      return "⚠️ Lỗi kết nối. Vui lòng kiểm tra cấu hình.";
     }
 
     return "Nhân vật đang bối rối, hãy hỏi lại theo cách khác nhé.";
@@ -1571,11 +1468,9 @@ CHỈ TRẢ VỀ JSON, KHÔNG CÓ TEXT THÊM.
     logger.log('Generating flashcards for topic:', topic);
 
     const response = await retryWithBackoff(() => {
-      return generateContent({
+      return ai.models.generateContent({
         model: MODEL_COMPLEX,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {},
-        safetySettings: [],
+        contents: prompt,
       });
     });
 
@@ -1615,8 +1510,8 @@ CHỈ TRẢ VỀ JSON, KHÔNG CÓ TEXT THÊM.
     logger.error("generateFlashcards error", err);
 
     // Check for specific error types
-    if (isApiKeyMissingError(err)) {
-      logger.error("Gemini API key missing");
+    if (err?.message?.includes('API key')) {
+      logger.error("API key error - check configuration");
     } else if (err?.message?.includes('network') || err?.message?.includes('fetch')) {
       logger.error("Network error - check internet connection");
     }
@@ -1713,11 +1608,9 @@ CHỈ TRẢ VỀ JSON, KHÔNG CÓ TEXT THÊM.
     logger.log('Generating mindmap for topic:', topic);
 
     const response = await retryWithBackoff(() => {
-      return generateContent({
+      return ai.models.generateContent({
         model: MODEL_COMPLEX,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {},
-        safetySettings: [],
+        contents: prompt,
       });
     });
 
@@ -1757,8 +1650,8 @@ CHỈ TRẢ VỀ JSON, KHÔNG CÓ TEXT THÊM.
     logger.error("generateMindmap error", err);
 
     // Check for specific error types
-    if (isApiKeyMissingError(err)) {
-      logger.error("Gemini API key missing");
+    if (err?.message?.includes('API key')) {
+      logger.error("API key error - check configuration");
     } else if (err?.message?.includes('network') || err?.message?.includes('fetch')) {
       logger.error("Network error - check internet connection");
     }
@@ -1803,7 +1696,7 @@ Nếu không thể đọc được gì, trả về: "[Không thể đọc đư�
 
     // Use retry logic for API call
     const response = await retryWithBackoff(async () => {
-      return await generateContent({
+      return await ai.models.generateContent({
         model: MODEL_FAST,
         contents: [
           {
@@ -1819,10 +1712,9 @@ Nếu không thể đọc được gì, trả về: "[Không thể đọc đư�
             ],
           },
         ],
-        generationConfig: {
+        config: {
           temperature: 0.1, // Low temperature for accurate transcription
         },
-        safetySettings: [],
       });
     });
 
@@ -1837,8 +1729,8 @@ Nếu không thể đọc được gì, trả về: "[Không thể đọc đư�
     logger.error("extractTextFromImage error", err);
 
     // Better error messages based on error type
-    if (isApiKeyMissingError(err)) {
-      return "Xin lỗi, hiện tại tôi không thể phản hồi. Vui lòng thử lại sau.";
+    if (err?.message?.includes('API key')) {
+      return "⚠️ Lỗi API Key. Vui lòng kiểm tra cấu hình.";
     }
     if (err?.message?.includes('quota') || err?.message?.includes('limit')) {
       return "⚠️ Đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau.";
@@ -1984,11 +1876,9 @@ CHỈ TRẢ VỀ JSON, KHÔNG CÓ TEXT THÊM.
     logger.log('Generating 7-day study plan for weaknesses:', weaknesses);
 
     const response = await retryWithBackoff(() => {
-      return generateContent({
+      return ai.models.generateContent({
         model: MODEL_COMPLEX,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {},
-        safetySettings: [],
+        contents: prompt,
       });
     });
 

@@ -171,11 +171,11 @@ export function useAsyncOperation<T>(options: AsyncOperationOptions = {}) {
       if (err?.message === 'TIMEOUT') {
         errorMessage = timeoutMessage;
       } else if (err?.message?.includes('QUOTA_EXCEEDED') || err?.message?.includes('quota')) {
-        errorMessage = 'Đã hết quota API. Vui lòng kiểm tra quota API.';
-      } else if (err?.message?.includes('GEMINI_KEY_MISSING')) {
-        errorMessage = 'Gemini API key chưa được cấu hình. Vui lòng kiểm tra cấu hình triển khai.';
+        errorMessage = 'Đã hết quota API. Vui lòng kiểm tra cấu hình API key.';
       } else if (err?.message?.includes('network') || err?.message?.includes('fetch') || err?.message?.includes('Failed to fetch')) {
         errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.';
+      } else if (err?.message?.includes('API key')) {
+        errorMessage = 'Lỗi API key. Vui lòng kiểm tra cấu hình trong Settings.';
       } else if (err?.message) {
         // Use the error message but make it user-friendly
         errorMessage = err.message.includes('API') || err.message.includes('AI')
