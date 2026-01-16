@@ -1,0 +1,16 @@
+{
+  "name": "render-upstream-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Render upstream proxy for Gemini",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

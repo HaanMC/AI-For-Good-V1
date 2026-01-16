@@ -29,7 +29,7 @@ const corsHeaders = (request: Request, env: Env): Headers => {
   const allowOrigin = getAllowedOrigin(request, env);
   const headers = new Headers();
   headers.set("Access-Control-Allow-Origin", allowOrigin);
-  headers.set("Access-Control-Allow-Methods", "POST,OPTIONS");
+  headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type");
   headers.set("Access-Control-Max-Age", "86400");
   headers.set("Vary", "Origin");
