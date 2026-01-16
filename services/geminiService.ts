@@ -97,6 +97,25 @@ const getApiErrorMessage = (data: GeminiProxyResponse | null, status: number) =>
   return `Lỗi Gemini API (HTTP ${status}).`;
 };
 
+const isApiKeyInvalidError = (data: GeminiProxyResponse | null) => {
+  const messages = [
+    (data as any)?.error?.message,
+    (data as any)?.message,
+    (data as any)?.error,
+    (data as any)?.raw?.error?.message,
+    (data as any)?.raw?.error?.details?.[0]?.message,
+  ]
+    .filter((message): message is string => typeof message === "string")
+    .map((message) => message.toLowerCase());
+
+  const hasExpiredMessage = messages.some((message) => message.includes("api key expired"));
+  const reason =
+    (data as any)?.error?.details?.[0]?.metadata?.reason ||
+    (data as any)?.raw?.error?.details?.[0]?.metadata?.reason;
+
+  return hasExpiredMessage || reason === "API_KEY_INVALID";
+};
+
 const generateContent = async (payload: GeminiGeneratePayload): Promise<GeminiProxyResponse> => {
   const key = getApiKey();
   console.log("[AI] key length:", key?.length);
@@ -120,9 +139,14 @@ const generateContent = async (payload: GeminiGeneratePayload): Promise<GeminiPr
   }
 
   if (!response.ok) {
+    console.error("Gemini API error response", {
+      status: response.status,
+      data,
+    });
     const message = getApiErrorMessage(data, response.status);
     const apiError = new Error(message);
     (apiError as any).status = response.status;
+    (apiError as any).apiKeyInvalid = isApiKeyInvalidError(data);
     throw apiError;
   }
 
