@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: render-upstream-proxy
+    env: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: node src/server.js
