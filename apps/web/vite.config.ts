@@ -1,0 +1,25 @@
+import path from 'path'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig(() => ({
+  // Custom domain: dùng '/' thay vì '/repo-name/'
+  base: '/',
+
+  server: {
+    port: 3000,
+    host: '0.0.0.0',
+    proxy: {
+      '/generate': 'http://localhost:8787',
+      '/debug': 'http://localhost:8787',
+    },
+  },
+
+  plugins: [react()],
+
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    },
+  },
+}))

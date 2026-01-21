@@ -32,15 +32,15 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+        working-directory: apps/web
 
       - name: Build
         run: npm run build
-        env:
-          API_KEY: ${{ secrets.API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.API_KEY }}
+        working-directory: apps/web
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -48,7 +48,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './apps/web/dist'
 
   # Job deploy
   deploy:

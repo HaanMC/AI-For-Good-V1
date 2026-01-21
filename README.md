@@ -1,136 +1,101 @@
-# Trợ Lý AI Học Văn Lớp 10
+# Grade 10 Literature AI Assistant (AI For Good)
 
-Ứng dụng AI hỗ trợ học sinh lớp 10 học tập và ôn luyện môn Ngữ Văn theo chương trình 2018.
+An AI-powered learning assistant for Grade 10 Vietnamese Literature. The app helps students
+practice reading comprehension, writing, dictionary lookups, roleplay, and exam preparation with
+SGK-aligned knowledge.
 
-## Tính năng chính
+## Architecture
 
-### 1. Trợ Lý Học Tập (Study Chat)
-- Chat AI thông minh hỗ trợ giải đáp mọi thắc mắc về Ngữ Văn
-- Hỗ trợ upload ảnh/file để phân tích
-- Nhận diện và giải đáp dựa trên điểm yếu của học sinh
-
-### 2. Hóa Thân Nhân Vật (Roleplay)
-- Trò chuyện trực tiếp với các nhân vật văn học
-- 6 nhân vật có sẵn: Từ Hải, Thúy Kiều, Nguyễn Trãi, Trạng Quỳnh, Tố Hữu, Chí Phèo
-
-### 3. Luyện Thi Giả Lập (Exam Generator)
-- 4 loại đề thi: 15 phút, Giữa kỳ, Cuối kỳ, THPT Quốc gia
-- 2 mức độ: Cơ bản và Nâng cao
-- Chế độ thi thử với giám sát bảo mật (fullscreen, theo dõi tab switching)
-- Chấm điểm tự động với phản hồi chi tiết
-
-### 4. Phòng Luyện Viết (Writing Workshop)
-- Phân tích và chấm điểm bài văn
-- Đánh giá theo rubric chuẩn
-- Gợi ý từ vựng và cách cải thiện
-
-### 5. Từ Điển Văn Học (Dictionary)
-- 100+ thuật ngữ văn học có sẵn
-- Tìm kiếm thông minh với autocomplete
-- Cache kết quả để truy cập nhanh
-
-### 6. Flashcards
-- Tạo flashcard tự động từ AI
-- Các mức độ khó: Dễ, Trung bình, Khó
-- Hỗ trợ học theo chủ đề
-
-### 7. Mindmap
-- Tạo sơ đồ tư duy cho các chủ đề
-- Hiển thị trực quan các mối liên hệ
-
-### 8. Kế Hoạch 7 Ngày (Study Plan)
-- Tạo kế hoạch học tập cá nhân hóa
-- Dựa trên điểm yếu và mục tiêu của học sinh
-- Hỗ trợ tùy chọn ngày nghỉ
-
-### 9. Cài Đặt
-- Chế độ sáng/tối
-- Chế độ tương phản cao (accessibility)
-- Quản lý hồ sơ người dùng
-- Lịch sử chat
-- Xuất dữ liệu backup
-
-## Công nghệ sử dụng
-
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **AI**: Google Gemini API (@google/genai)
-- **Icons**: Lucide React
-
-## Cài đặt và chạy
-
-### Yêu cầu
-- Node.js >= 18
-- npm hoặc yarn
-
-### Bước 1: Clone dự án
-```bash
-git clone <repository-url>
-cd AI-For-Good-V0
+```
+Browser (apps/web)
+   -> Cloudflare Worker (infra/worker)
+       -> Render Upstream (infra/upstream-render)
+           -> Gemini API
 ```
 
-### Bước 2: Cài đặt dependencies
-```bash
-npm install
+- **Frontend**: Vite + React web app.
+- **Worker**: Cloudflare Worker that serves static assets and proxies `/generate` + `/debug`.
+- **Upstream**: Render service that calls Gemini with server-side secrets.
+
+## Folder map
+
+```
+apps/web/                # Vite React application
+infra/worker/            # Cloudflare Worker proxy
+infra/upstream-render/   # Render upstream proxy
+docs/                    # Deployment + architecture docs
 ```
 
-### Bước 3: Cấu hình API Key
-Tạo file `.env` trong thư mục gốc:
-```env
-GEMINI_API_KEY=your_google_gemini_api_key
-```
+See `docs/README-ARCHITECTURE.md` for detailed migration notes.
 
-### Bước 4: Chạy development server
+## Local development
+
+### Web app
+
 ```bash
+cd apps/web
+npm i
 npm run dev
 ```
 
-### Bước 5: Build production
+### Cloudflare Worker
+
 ```bash
-npm run build
+cd infra/worker
+wrangler dev
 ```
 
-### Bước 6: Preview production build
+> Build the web app first so `apps/web/dist` exists if you want the Worker to serve assets.
+
+### Render upstream
+
 ```bash
-npm run preview
+cd infra/upstream-render
+npm i
+npm start
 ```
 
-## Cấu trúc dự án
+## Deployments
 
-```
-├── App.tsx                    # Component chính
-├── types.ts                   # Type definitions
-├── index.tsx                  # Entry point
-├── index.css                  # Global styles
-├── services/
-│   └── geminiService.ts       # Google Gemini API integration
-├── data/
-│   └── staticDictionary.ts    # Từ điển văn học offline
-├── utils/
-│   └── logger.ts              # Debug logger
-├── grade10-literature-knowledge.ts  # Knowledge base
-└── GRADE10-LITERATURE-GUIDE.md      # Documentation
-```
+### Render upstream
 
-## Lưu trữ dữ liệu
+1. Create a Render **Web Service** with **Root Directory** `infra/upstream-render`.
+2. Build: `npm ci`
+3. Start: `node src/server.js`
+4. Set env vars (see table below).
 
-Ứng dụng sử dụng localStorage để lưu:
-- `vanhoc10_profile`: Hồ sơ người dùng
-- `vanhoc10_chat_history`: Lịch sử chat (tối đa 50 sessions)
-- `theme`: Chế độ sáng/tối
-- `highContrast`: Chế độ tương phản cao
-- `literary_dictionary_cache`: Cache từ điển (7 ngày)
+### Cloudflare Worker
 
-## Đóng góp
+1. Set Worker vars (see table below).
+2. Run `wrangler deploy` from `infra/worker`.
 
-Mọi đóng góp đều được hoan nghênh! Vui lòng tạo Pull Request hoặc Issue.
+### Optional: GitHub Pages (web app)
 
-## License
+The GitHub Actions workflow builds the web app from `apps/web` and publishes `apps/web/dist`.
 
-MIT License
+## Environment variables
 
----
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `ALLOWED_ORIGINS` | Cloudflare Worker | CORS allowlist for `/generate`. |
+| `UPSTREAM_URL` | Cloudflare Worker | Full upstream URL (e.g. `https://<service>.onrender.com/generate`). |
+| `UPSTREAM_TOKEN` | Cloudflare Worker | Proxy token shared with Render upstream. |
+| `GEMINI_API_KEY` | Render upstream | Gemini API key (server-side only). |
+| `PROXY_TOKEN` | Render upstream | Token validated by the upstream. |
 
-**Version**: 1.0.0
-**Developed for**: AI For Good Competition
+## SGK knowledge (markdown + manifest)
+
+SGK data lives in `apps/web/public/sgk/`.
+
+To add books:
+
+1. Add the new markdown files to `apps/web/public/sgk/`.
+2. Update `apps/web/public/sgk/manifest.json` with the new files.
+3. Rebuild the web app so the updated manifest is bundled.
+
+## Docs
+
+- `docs/DEPLOY_CLOUDFLARE.md`
+- `docs/UPSTREAM_DEPLOY.md`
+- `docs/GRADE10-LITERATURE-GUIDE.md`
+- `docs/README-ARCHITECTURE.md`
