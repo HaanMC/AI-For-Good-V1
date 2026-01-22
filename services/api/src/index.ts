@@ -38,7 +38,7 @@ app.use(
     name: "aiforgood_session",
     keys: [sessionSecret],
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "none",
     secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : true,
     path: "/",
   })
@@ -76,7 +76,7 @@ app.use((error: Error, _req: express.Request, res: express.Response, _next: expr
 });
 
 const port = Number(process.env.PORT || 8080);
-app.listen(port, () => {
+app.listen(port, "0.0.0.0", () => {
   logInfo("api_listening", { port });
 });
 
