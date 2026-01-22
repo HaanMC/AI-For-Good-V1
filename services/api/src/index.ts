@@ -1,7 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { initializeApp, cert } from "firebase-admin/app";
+import cookieSession from "cookie-session";
+import authRoutes from "./routes/auth";
 import chatRoutes from "./routes/chat";
 import adminRoutes from "./routes/admin";
 import studentRoutes from "./routes/student";
@@ -12,8 +13,10 @@ import { requestIdMiddleware } from "./middleware/requestId";
 import { requireAuth, requireAdmin } from "./middleware/auth";
 import { rateLimit } from "./middleware/rateLimit";
 import { logInfo, logError } from "./utils/logger";
+import { ensureAdminUser } from "./services/adminSeed";
 
 const app = express();
+app.set("trust proxy", 1);
 
 const allowedOrigin = process.env.ALLOWED_ORIGIN || "https://aiforgood.nguyenhaan.id.vn";
 
@@ -25,14 +28,21 @@ app.use(cors({
 app.use(express.json({ limit: "2mb" }));
 app.use(requestIdMiddleware);
 
-const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-if (serviceAccountJson) {
-  initializeApp({
-    credential: cert(JSON.parse(serviceAccountJson)),
-  });
-} else {
-  initializeApp();
+const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret";
+if (!process.env.SESSION_SECRET) {
+  logInfo("session_secret_missing", { warning: "Set SESSION_SECRET in production." });
 }
+
+app.use(
+  cookieSession({
+    name: "aiforgood_session",
+    keys: [sessionSecret],
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : true,
+    path: "/",
+  })
+);
 
 app.use((req, res, next) => {
   const startedAt = Date.now();
@@ -52,6 +62,7 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+app.use("/api", authRoutes);
 app.use("/api", requireAuth, rateLimit, chatRoutes);
 app.use("/api", requireAuth, rateLimit, examRoutes);
 app.use("/api", requireAuth, rateLimit, writingRoutes);
@@ -67,4 +78,8 @@ app.use((error: Error, _req: express.Request, res: express.Response, _next: expr
 const port = Number(process.env.PORT || 8080);
 app.listen(port, () => {
   logInfo("api_listening", { port });
+});
+
+ensureAdminUser().catch((error) => {
+  logError("admin_seed_failed", { message: error instanceof Error ? error.message : "unknown" });
 });

@@ -1,7 +1,6 @@
 import { Router } from "express";
 import type { AuthenticatedRequest } from "../middleware/auth";
 import { firestore } from "../services/firestore";
-import { getAuth } from "firebase-admin/auth";
 import { nanoid } from "nanoid";
 
 const router = Router();
@@ -12,11 +11,17 @@ router.post("/admin/setRole", async (req: AuthenticatedRequest, res) => {
     return res.status(400).json({ error: "uid and role are required" });
   }
 
-  await getAuth().setCustomUserClaims(uid, { role });
-  await firestore.collection("users").doc(uid).set({
-    role,
-    updatedAt: new Date(),
-  }, { merge: true });
+  if (role !== "admin" && role !== "student") {
+    return res.status(400).json({ error: "role must be admin or student" });
+  }
+
+  await firestore.collection("users").doc(uid).set(
+    {
+      role,
+      updatedAt: new Date(),
+    },
+    { merge: true }
+  );
 
   return res.json({ ok: true });
 });
@@ -94,8 +99,19 @@ router.get("/admin/usage", async (req, res) => {
   if (uid) query = query.where("uid", "==", uid);
   if (feature) query = query.where("feature", "==", feature);
   const snapshot = await query.orderBy("createdAt", "desc").limit(100).get();
-  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  return res.json({ data });
+  const logs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const summary = logs.reduce(
+    (acc, log) => {
+      const featureKey = String(log.feature || "unknown");
+      const statusKey = String(log.status || "unknown");
+      acc.total += 1;
+      acc.byFeature[featureKey] = (acc.byFeature[featureKey] || 0) + 1;
+      acc.byStatus[statusKey] = (acc.byStatus[statusKey] || 0) + 1;
+      return acc;
+    },
+    { total: 0, byFeature: {} as Record<string, number>, byStatus: {} as Record<string, number> }
+  );
+  return res.json({ summary, logs });
 });
 
 router.get("/admin/users", async (req, res) => {
@@ -105,11 +121,35 @@ router.get("/admin/users", async (req, res) => {
   if (search) {
     const lower = search.toLowerCase();
     data = data.filter((user) =>
-      String(user.email || "").toLowerCase().includes(lower) ||
+      String(user.username || "").toLowerCase().includes(lower) ||
       String(user.displayName || "").toLowerCase().includes(lower)
     );
   }
   return res.json({ data });
+});
+
+router.get("/admin/user/:uid", async (req, res) => {
+  const { uid } = req.params;
+  const userDoc = await firestore.collection("users").doc(uid).get();
+  if (!userDoc.exists) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const profileDoc = await firestore.collection("profiles").doc(uid).get();
+  const submissionsSnapshot = await firestore
+    .collection("submissions")
+    .where("uid", "==", uid)
+    .orderBy("createdAt", "desc")
+    .limit(10)
+    .get();
+
+  const submissions = submissionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+  return res.json({
+    user: { id: userDoc.id, ...userDoc.data() },
+    profile: profileDoc.exists ? { id: profileDoc.id, ...profileDoc.data() } : null,
+    submissions,
+  });
 });
 
 export default router;

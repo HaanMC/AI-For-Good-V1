@@ -1,52 +1,62 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  GoogleAuthProvider,
-  User,
-  getIdTokenResult,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-} from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { apiGet, apiPost } from '../services/apiClient';
 
 export type AuthContextValue = {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   role: 'admin' | 'student' | null;
-  signInWithGoogle: () => Promise<void>;
+  login: (payload: { username: string; password: string }) => Promise<void>;
+  register: (payload: { username: string; password: string; displayName?: string }) => Promise<void>;
   signOutUser: () => Promise<void>;
+};
+
+export type AuthUser = {
+  uid: string;
+  username: string;
+  role: 'admin' | 'student';
+  displayName?: string;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<'admin' | 'student' | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
-      setUser(nextUser);
-      if (nextUser) {
-        const tokenResult = await getIdTokenResult(nextUser, true);
-        const claimRole = (tokenResult.claims.role as 'admin' | 'student' | undefined) ?? 'student';
-        setRole(claimRole);
-      } else {
+    const hydrate = async () => {
+      try {
+        const me = await apiGet<AuthUser>('/api/auth/me', { requireAuth: false });
+        setUser(me);
+        setRole(me.role);
+      } catch (error) {
+        setUser(null);
         setRole(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    hydrate();
   }, []);
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+  const login = async (payload: { username: string; password: string }) => {
+    const userData = await apiPost<AuthUser>('/api/auth/login', payload, { requireAuth: false });
+    setUser(userData);
+    setRole(userData.role);
+  };
+
+  const register = async (payload: { username: string; password: string; displayName?: string }) => {
+    const userData = await apiPost<AuthUser>('/api/auth/register', payload, { requireAuth: false });
+    setUser(userData);
+    setRole(userData.role);
   };
 
   const signOutUser = async () => {
-    await signOut(auth);
+    await apiPost('/api/auth/logout', {}, { requireAuth: false });
+    setUser(null);
+    setRole(null);
   };
 
   const value = useMemo(
@@ -54,7 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       loading,
       role,
-      signInWithGoogle,
+      login,
+      register,
       signOutUser,
     }),
     [user, loading, role]

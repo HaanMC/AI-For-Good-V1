@@ -103,9 +103,12 @@ const buildGenerateBody = ({ model, contents, config, safetySettings }: Generate
   };
 };
 
-const generateContent = async (request: GenerateRequest): Promise<{ text: string; raw: unknown }> => {
+const generateContentWithRoute = async (
+  route: string,
+  request: GenerateRequest
+): Promise<{ text: string; raw: unknown }> => {
   const payload = await apiPost<{ ok: boolean; text?: string; raw?: unknown; error?: string }>(
-    "/api/chat",
+    route,
     buildGenerateBody(request)
   );
 
@@ -119,6 +122,9 @@ const generateContent = async (request: GenerateRequest): Promise<{ text: string
     raw: payload.raw,
   };
 };
+
+const generateContent = async (request: GenerateRequest): Promise<{ text: string; raw: unknown }> =>
+  generateContentWithRoute("/api/chat", request);
 
 // Danh sách các trang từ điển uy tín được phép tìm kiếm
 const TRUSTED_DICTIONARY_SITES = [
@@ -1146,7 +1152,7 @@ Trả về JSON theo schema đã khai báo cho GRADING_SCHEMA.
 
     // Use retry logic for API call
     const response = await retryWithBackoff(async () => {
-      return await generateContent({
+      return await generateContentWithRoute("/api/writing/feedback", {
         model: MODEL_COMPLEX,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
@@ -1354,7 +1360,7 @@ Trả về JSON đúng WritingFeedback (rubric, critique, improvedVersion, bette
 
     // Use retry logic for API call
     const response = await retryWithBackoff(async () => {
-      return await generateContent({
+      return await generateContentWithRoute("/api/exam/generate", {
         model: MODEL_COMPLEX,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {

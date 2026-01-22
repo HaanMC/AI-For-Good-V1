@@ -4,10 +4,12 @@ import MainLayout from './layouts/MainLayout';
 import AdminLayout from './layouts/AdminLayout';
 import App from './App';
 import LoginPage from '../features/auth/LoginPage';
+import RegisterPage from '../features/auth/RegisterPage';
 import ProtectedRoute from '../shared/components/ProtectedRoute';
 import AdminOverviewPage from '../features/adminpanel/pages/AdminOverviewPage';
 import AdminUsagePage from '../features/adminpanel/pages/AdminUsagePage';
 import AdminUsersPage from '../features/adminpanel/pages/AdminUsersPage';
+import AdminUserDetailPage from '../features/adminpanel/pages/AdminUserDetailPage';
 import AdminClassesPage from '../features/adminpanel/pages/AdminClassesPage';
 import AdminAssignmentsPage from '../features/adminpanel/pages/AdminAssignmentsPage';
 import AdminSubmissionsPage from '../features/adminpanel/pages/AdminSubmissionsPage';
@@ -19,6 +21,7 @@ const AppRouter: React.FC = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route
           path="/"
           element={
@@ -51,6 +54,7 @@ const AppRouter: React.FC = () => {
           <Route path="overview" element={<AdminOverviewPage />} />
           <Route path="usage" element={<AdminUsagePage />} />
           <Route path="users" element={<AdminUsersPage />} />
+          <Route path="users/:uid" element={<AdminUserDetailPage />} />
           <Route path="classes" element={<AdminClassesPage />} />
           <Route path="assignments" element={<AdminAssignmentsPage />} />
           <Route path="submissions" element={<AdminSubmissionsPage />} />

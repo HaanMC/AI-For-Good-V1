@@ -10,7 +10,7 @@ export type GeminiRequest = {
 };
 
 export const generateWithVertex = async (request: GeminiRequest) => {
-  const project = process.env.GCP_PROJECT_ID;
+  const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT_ID;
   const location = process.env.GCP_LOCATION || "us-central1";
   if (!project) {
     throw new Error("Missing GCP_PROJECT_ID for Vertex AI");
