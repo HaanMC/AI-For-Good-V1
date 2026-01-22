@@ -10,8 +10,7 @@ export default defineConfig(() => ({
     port: 3000,
     host: '0.0.0.0',
     proxy: {
-      '/generate': 'http://localhost:8787',
-      '/debug': 'http://localhost:8787',
+      '/api': 'http://localhost:8080',
     },
   },
 

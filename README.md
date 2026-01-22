@@ -1,32 +1,29 @@
-# Grade 10 Literature AI Assistant (AI For Good)
+# AI For Good V1 — AI Học Văn 10
 
-An AI-powered learning assistant for Grade 10 Vietnamese Literature. The app helps students
-practice reading comprehension, writing, dictionary lookups, roleplay, and exam preparation with
-SGK-aligned knowledge.
+AI For Good V1 is a production-ready learning platform for Grade 10 Vietnamese Literature. It delivers a modern web client on GitHub Pages and a secure Cloud Run API backed by Firestore and Firebase Auth.
 
 ## Architecture
 
 ```
-Browser (apps/web)
-   -> Cloudflare Worker (infra/worker)
-       -> Render Upstream (infra/upstream-render)
-           -> Gemini API
+Browser (GitHub Pages: apps/web)
+  -> Cloud Run API (services/api)
+      -> Firestore
+      -> Firebase Auth (ID tokens + custom claims)
+      -> Vertex AI Gemini (service account)
 ```
 
-- **Frontend**: Vite + React web app.
-- **Worker**: Cloudflare Worker that serves static assets and proxies `/generate` + `/debug`.
-- **Upstream**: Render service that calls Gemini with server-side secrets.
+- **Frontend**: Vite + React SPA hosted on GitHub Pages with custom domain `aiforgood.nguyenhaan.id.vn`.
+- **Backend**: Node/TypeScript Cloud Run API with Firebase Auth verification and RBAC.
+- **Data**: Firestore collections for users, classes, assignments, submissions, usage logs, and proctoring events.
+- **LLM**: Server-side calls to Vertex AI Gemini (no API keys in frontend).
 
 ## Folder map
 
 ```
-apps/web/                # Vite React application
-infra/worker/            # Cloudflare Worker proxy
-infra/upstream-render/   # Render upstream proxy
-docs/                    # Deployment + architecture docs
+apps/web/       # Vite React app (GitHub Pages)
+services/api/   # Cloud Run API (Node/TypeScript)
+docs/           # Architecture + deployment + security
 ```
-
-See `docs/README-ARCHITECTURE.md` for detailed migration notes.
 
 ## Local development
 
@@ -34,68 +31,62 @@ See `docs/README-ARCHITECTURE.md` for detailed migration notes.
 
 ```bash
 cd apps/web
-npm i
+npm ci
 npm run dev
 ```
 
-### Cloudflare Worker
+### API (Cloud Run)
 
 ```bash
-cd infra/worker
-wrangler dev
+cd services/api
+npm ci
+npm run dev
 ```
 
-> Build the web app first so `apps/web/dist` exists if you want the Worker to serve assets.
+## Deploy overview
 
-### Render upstream
+1. **GitHub Pages**
+   - Custom domain: `aiforgood.nguyenhaan.id.vn`
+   - Ensure GitHub Pages builds `apps/web/dist`.
+2. **Cloud Run API**
+   - Deploy `services/api` with service account access to Firestore + Vertex AI.
+3. **Firebase Auth**
+   - Enable Google provider and add authorized domains.
+4. **Firestore**
+   - Create collections documented in `docs/ARCHITECTURE.md`.
 
-```bash
-cd infra/upstream-render
-npm i
-npm start
-```
-
-## Deployments
-
-### Render upstream
-
-1. Create a Render **Web Service** with **Root Directory** `infra/upstream-render`.
-2. Build: `npm ci`
-3. Start: `node src/server.js`
-4. Set env vars (see table below).
-
-### Cloudflare Worker
-
-1. Set Worker vars (see table below).
-2. Run `wrangler deploy` from `infra/worker`.
-
-### Optional: GitHub Pages (web app)
-
-The GitHub Actions workflow builds the web app from `apps/web` and publishes `apps/web/dist`.
+Detailed steps:
+- `docs/DEPLOY_GCP.md`
+- `docs/ARCHITECTURE.md`
+- `docs/SECURITY.md`
+- `docs/BOOTSTRAP_ADMIN.md`
 
 ## Environment variables
 
-| Variable | Where | Purpose |
-| --- | --- | --- |
-| `ALLOWED_ORIGINS` | Cloudflare Worker | CORS allowlist for `/generate`. |
-| `UPSTREAM_URL` | Cloudflare Worker | Full upstream URL (e.g. `https://<service>.onrender.com/generate`). |
-| `UPSTREAM_TOKEN` | Cloudflare Worker | Proxy token shared with Render upstream. |
-| `GEMINI_API_KEY` | Render upstream | Gemini API key (server-side only). |
-| `PROXY_TOKEN` | Render upstream | Token validated by the upstream. |
+### Frontend (GitHub Actions variables)
 
-## SGK knowledge (markdown + manifest)
+| Variable | Purpose |
+| --- | --- |
+| `VITE_API_BASE_URL` | Cloud Run API URL (e.g. `https://api-xyz.a.run.app`) |
+| `VITE_FIREBASE_API_KEY` | Firebase web API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `VITE_FIREBASE_APP_ID` | Firebase app ID |
 
-SGK data lives in `apps/web/public/sgk/`.
+### Backend (Cloud Run)
 
-To add books:
+| Variable | Purpose |
+| --- | --- |
+| `GCP_PROJECT_ID` | GCP project ID |
+| `GCP_LOCATION` | Vertex AI region (e.g. `us-central1`) |
+| `ALLOWED_ORIGIN` | CORS origin (default: `https://aiforgood.nguyenhaan.id.vn`) |
+| `DAILY_QUOTA` | Per-user daily request quota |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Service account JSON (optional, otherwise ADC) |
 
-1. Add the new markdown files to `apps/web/public/sgk/`.
-2. Update `apps/web/public/sgk/manifest.json` with the new files.
-3. Rebuild the web app so the updated manifest is bundled.
+## Security highlights
 
-## Docs
+- Firebase ID tokens required for all `/api/*` routes.
+- Admin-only routes enforce `role=admin` custom claims.
+- LLM calls are strictly server-side (no frontend secrets).
+- Rate limits and daily quota enforced on the API.
 
-- `docs/DEPLOY_CLOUDFLARE.md`
-- `docs/UPSTREAM_DEPLOY.md`
-- `docs/GRADE10-LITERATURE-GUIDE.md`
-- `docs/README-ARCHITECTURE.md`
