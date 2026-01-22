@@ -45,10 +45,11 @@ npm run dev
 ## Deploy overview
 
 1. **GitHub Pages**
-   - Custom domain: `aiforgood.nguyenhaan.id.vn`
+   - Custom domain: `aiforgood.nguyenhaan.id.vn` (configure the Pages custom domain + DNS CNAME).
    - Build output: `apps/web/dist`.
 2. **Cloud Run API**
    - Deploy `services/api` with service account access to Firestore + Vertex AI.
+   - Cloud Build must use `services/api/Dockerfile` as the build config (source location).
 3. **Firestore**
    - Collections: `users`, `profiles`, `submissions`, `usageLogs`, `proctoringEvents`.
 
@@ -74,11 +75,27 @@ npm run dev
 | `COOKIE_SECURE` | Set to `true` to force secure cookies (default: `true`) |
 | `DAILY_QUOTA` | Per-user daily request quota |
 
+## Cloud Run deployment steps (Cloud Build UI)
+
+1. Open **Cloud Run → Deploy container**.
+2. Select **Source** and set **Dockerfile** path to `/services/api/Dockerfile`.
+3. Set environment variables:
+   - `ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn`
+   - `ADMIN_USERNAME` and `ADMIN_PASSWORD` (override defaults in production)
+   - `SESSION_SECRET` (required for cookie signing)
+4. Grant the Cloud Run service account **Cloud Datastore User** (Firestore) and Vertex AI access.
+5. Deploy and confirm the service responds on the `$PORT` provided by Cloud Run.
+
+## GitHub Pages setup notes
+
+- The Pages build expects `apps/web/package-lock.json` for `npm ci`.
+- Configure the GitHub Actions repository variable `VITE_API_BASE_URL` to point at the Cloud Run URL.
+- Ensure the custom domain `aiforgood.nguyenhaan.id.vn` is configured in GitHub Pages and DNS.
+
 ## Security notes
 
 - Change `ADMIN_PASSWORD` in production and rotate regularly.
 - Passwords are hashed with `bcrypt`.
-- Session cookies are `HttpOnly`, `Secure`, and `SameSite=Lax`.
+- Session cookies are `HttpOnly`, `Secure`, and `SameSite=None` to allow cross-site auth from GitHub Pages.
 - LLM calls remain server-side; no frontend secrets.
 - Rate limits are enforced for auth and API usage.
-
