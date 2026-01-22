@@ -1,5 +1,6 @@
 import { Type, Schema } from "@google/genai";
 import logger from "../utils/logger";
+import { apiPost } from "./apiClient";
 import { checkContentSafety, SafetyCheckResult } from "../utils/contentSafetyFilter";
 import { normalizeViText } from "../../utils/textNormalize";
 import {
@@ -103,15 +104,12 @@ const buildGenerateBody = ({ model, contents, config, safetySettings }: Generate
 };
 
 const generateContent = async (request: GenerateRequest): Promise<{ text: string; raw: unknown }> => {
-  const response = await fetch("/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildGenerateBody(request)),
-  });
+  const payload = await apiPost<{ ok: boolean; text?: string; raw?: unknown; error?: string }>(
+    "/api/chat",
+    buildGenerateBody(request)
+  );
 
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok || !payload?.ok) {
+  if (!payload?.ok) {
     const errorMessage = payload?.error || "Gemini proxy error";
     throw new Error(errorMessage);
   }

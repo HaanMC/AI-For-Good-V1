@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   Send,
@@ -101,6 +102,7 @@ import {
   extractTextFromImage
 } from '../shared/services/geminiService';
 import logger from '../shared/utils/logger';
+import { apiPost } from '../shared/services/apiClient';
 import {
   GRADE_10_WEAKNESS_OPTIONS,
   GRADE_10_CHARACTERS,
@@ -587,6 +589,45 @@ const App: React.FC = () => {
   const toggleHighContrast = () => setIsHighContrast(prev => !prev);
 
   const [mode, setMode] = useState<AppMode>(AppMode.StudyChat);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const routeModeMap: Record<string, AppMode> = {
+    '/': AppMode.StudyChat,
+    '/chat': AppMode.StudyChat,
+    '/roleplay': AppMode.Roleplay,
+    '/exam': AppMode.ExamGenerator,
+    '/exam/mock': AppMode.ExamGenerator,
+    '/writing': AppMode.WritingWorkshop,
+    '/dictionary': AppMode.Dictionary,
+    '/flashcards': AppMode.Flashcard,
+    '/mindmap': AppMode.Mindmap,
+    '/study-plan': AppMode.StudyPlan,
+    '/settings': AppMode.Settings,
+  };
+  const modeRouteMap: Record<AppMode, string> = {
+    [AppMode.StudyChat]: '/chat',
+    [AppMode.Roleplay]: '/roleplay',
+    [AppMode.ExamGenerator]: '/exam',
+    [AppMode.WritingWorkshop]: '/writing',
+    [AppMode.Dictionary]: '/dictionary',
+    [AppMode.Flashcard]: '/flashcards',
+    [AppMode.Mindmap]: '/mindmap',
+    [AppMode.StudyPlan]: '/study-plan',
+    [AppMode.StudentProfile]: '/settings',
+    [AppMode.Settings]: '/settings',
+  };
+
+  useEffect(() => {
+    const nextMode = routeModeMap[location.pathname];
+    if (nextMode && nextMode !== mode) {
+      setMode(nextMode);
+    }
+    if (location.pathname === '/exam/mock') {
+      setExamSessionMode(ExamSessionMode.Exam);
+    } else if (location.pathname.startsWith('/exam')) {
+      setExamSessionMode(ExamSessionMode.Practice);
+    }
+  }, [location.pathname, mode]);
   const [messages, setMessages] = useState<Message[]>([
     { 
       id: '1', 
@@ -627,6 +668,9 @@ const App: React.FC = () => {
   const [securityViolations, setSecurityViolations] = useState(0);
   const [showSecurityWarning, setShowSecurityWarning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [examSessionId, setExamSessionId] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinMessage, setJoinMessage] = useState<string | null>(null);
   const [penaltyPoints, setPenaltyPoints] = useState(0); // Điểm bị trừ do vi phạm
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
@@ -876,14 +920,14 @@ const App: React.FC = () => {
   // Load a chat session
   const loadChatSession = (session: ChatSession) => {
     if (session.mode === 'roleplay') {
-      setMode(AppMode.Roleplay);
+      handleModeChange(AppMode.Roleplay);
       setRoleplayMessages(session.messages);
       if (session.characterId) {
         const char = CHARACTERS.find(c => c.id === session.characterId);
         if (char) setSelectedChar(char);
       }
     } else {
-      setMode(AppMode.StudyChat);
+      handleModeChange(AppMode.StudyChat);
       setMessages(session.messages);
     }
     setCurrentSessionId(session.id);
@@ -1118,6 +1162,7 @@ const App: React.FC = () => {
       setShowSecurityWarning(true);
       setTimeout(() => setShowSecurityWarning(false), 3000);
       logger.warn(`⚠️ Vi phạm quy chế thi: ${violationType}`);
+      sendProctoringEvent('violation', violationType);
     };
 
     // Prevent copy/paste/cut
@@ -1188,10 +1233,17 @@ const App: React.FC = () => {
       setSecurityViolations(0);
       setPenaltyPoints(0);
     };
-  }, [isTakingExam, userProfile, examSessionMode]);
+  }, [isTakingExam, userProfile, examSessionMode, examSessionId]);
 
   // Prevent tab switch when taking exam
   const handleModeChange = (newMode: AppMode) => {
+    const navigateToMode = (targetMode: AppMode) => {
+      const nextPath = modeRouteMap[targetMode] ?? '/';
+      if (location.pathname !== nextPath) {
+        navigate(nextPath);
+      }
+    };
+
     if (isTakingExam) {
       showConfirmDialog({
         title: 'Thoát bài thi?',
@@ -1202,6 +1254,7 @@ const App: React.FC = () => {
         onConfirm: () => {
           // Reset all exam-related states
           setIsTakingExam(false);
+          setExamSessionId(null);
           setGeneratedExam(null);
           setStudentWork("");
           setTimeLeft(0);
@@ -1209,10 +1262,12 @@ const App: React.FC = () => {
           setPenaltyPoints(0);
           setGradingResult(null);
           setMode(newMode);
+          navigateToMode(newMode);
         }
       });
     } else {
       setMode(newMode);
+      navigateToMode(newMode);
     }
   };
 
@@ -1376,6 +1431,33 @@ const App: React.FC = () => {
     setShowCamera(true);
   };
 
+  const createExamSessionId = () =>
+    `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  const sendProctoringEvent = async (type: string, detail: string) => {
+    if (!examSessionId) return;
+    try {
+      await apiPost('/api/telemetry/event', {
+        examSessionId,
+        type,
+        detail,
+      });
+    } catch (error) {
+      logger.error('Không thể gửi sự kiện giám sát:', error);
+    }
+  };
+
+  const handleJoinClass = async () => {
+    if (!joinCode.trim()) return;
+    try {
+      await apiPost('/api/student/join', { code: joinCode.trim().toUpperCase() });
+      setJoinMessage('Đã tham gia lớp học thành công.');
+      setJoinCode('');
+    } catch (error) {
+      setJoinMessage('Mã tham gia không hợp lệ hoặc đã hết hạn.');
+    }
+  };
+
   const handleGenerateExam = async () => {
     // Clear previous errors
     setTopicError(null);
@@ -1420,6 +1502,7 @@ const App: React.FC = () => {
       if (result) {
         setGeneratedExam(result);
         setIsTakingExam(true);
+        setExamSessionId(createExamSessionId());
         // Safe duration parsing with fallback from config
         const parsedDuration = parseInt(result.duration);
         const safeDuration = !isNaN(parsedDuration) && parsedDuration > 0
@@ -1470,6 +1553,7 @@ const App: React.FC = () => {
     // Proceed with submission
     setIsLoading(true);
     setIsTakingExam(false); // Stop exam mode (timer stops)
+    setExamSessionId(null);
 
     // Handle empty student work for auto-submit (time ran out)
     let result: GradingResult | null;
@@ -1863,6 +1947,7 @@ const App: React.FC = () => {
         onConfirm={() => {
           setShowExitConfirmation(false);
           setIsTakingExam(false);
+          setExamSessionId(null);
           setGeneratedExam(null);
           setStudentWork("");
           setSecurityViolations(0);
@@ -2759,7 +2844,7 @@ const App: React.FC = () => {
               <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-900 font-sans transition-colors overflow-hidden">
                  <div className="flex-1 overflow-y-auto p-4 md:p-8">
                    <div className="max-w-5xl mx-auto">
-                    <button onClick={() => { setGradingResult(null); setGeneratedExam(null); setStudentWork(""); setIsTakingExam(false); }} className="mb-6 flex items-center gap-2 text-stone-500 dark:text-stone-400 hover:text-accent font-medium">
+                    <button onClick={() => { setGradingResult(null); setGeneratedExam(null); setStudentWork(""); setIsTakingExam(false); setExamSessionId(null); }} className="mb-6 flex items-center gap-2 text-stone-500 dark:text-stone-400 hover:text-accent font-medium">
                        <ArrowRight className="w-4 h-4 rotate-180" /> Quay lại màn hình chính
                     </button>
 
@@ -4441,6 +4526,31 @@ const App: React.FC = () => {
                     Xem Hồ Sơ
                   </button>
                 </div>
+              </div>
+
+              {/* Join Class */}
+              <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 p-6">
+                <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-accent" />
+                  Tham gia lớp học
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={joinCode}
+                    onChange={(event) => setJoinCode(event.target.value)}
+                    placeholder="Nhập mã tham gia"
+                    className="flex-1 min-w-[200px] rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 px-3 py-2 text-sm"
+                  />
+                  <button
+                    onClick={handleJoinClass}
+                    className="rounded-full bg-stone-900 px-4 py-2 text-sm text-white"
+                  >
+                    Tham gia
+                  </button>
+                </div>
+                {joinMessage && (
+                  <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">{joinMessage}</p>
+                )}
               </div>
 
               {/* Exam Security Preferences */}
