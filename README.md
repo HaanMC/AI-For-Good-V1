@@ -48,8 +48,8 @@ npm run dev
    - Custom domain: `aiforgood.nguyenhaan.id.vn` (configure the Pages custom domain + DNS CNAME).
    - Build output: `apps/web/dist`.
 2. **Cloud Run API**
-   - Deploy `services/api` with service account access to Firestore + Vertex AI.
-   - Cloud Build must use `services/api/Dockerfile` as the build config (source location).
+   - Deploy the backend from Cloud Build using either the root `/Dockerfile` (builds `services/api`) or `/services/api/Dockerfile` directly.
+   - Cloud Run listens on `0.0.0.0:$PORT` for container health.
 3. **Firestore**
    - Collections: `users`, `profiles`, `submissions`, `usageLogs`, `proctoringEvents`.
 
@@ -77,14 +77,34 @@ npm run dev
 
 ## Cloud Run deployment steps (Cloud Build UI)
 
-1. Open **Cloud Run → Deploy container**.
-2. Select **Source** and set **Dockerfile** path to `/services/api/Dockerfile`.
-3. Set environment variables:
+1. Open **Cloud Run → Deploy container** and select **Source**.
+2. **Choose Dockerfile path**:
+   - **Default root Dockerfile**: leave the Dockerfile path as `/Dockerfile` (builds the backend from `services/api`).
+   - **Explicit service Dockerfile**: set Dockerfile path to `/services/api/Dockerfile`.
+3. Set **Build context** to the repository root.
+4. Set environment variables:
    - `ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn`
    - `ADMIN_USERNAME` and `ADMIN_PASSWORD` (override defaults in production)
    - `SESSION_SECRET` (required for cookie signing)
-4. Grant the Cloud Run service account **Cloud Datastore User** (Firestore) and Vertex AI access.
-5. Deploy and confirm the service responds on the `$PORT` provided by Cloud Run.
+5. Grant the Cloud Run service account **Cloud Datastore User** (Firestore) and Vertex AI access.
+6. Deploy and confirm the service responds on the `$PORT` provided by Cloud Run.
+
+## Cloud Build CLI example
+
+```bash
+gcloud builds submit --tag gcr.io/$PROJECT_ID/aiforgood-api .
+```
+
+Then deploy the image to Cloud Run:
+
+```bash
+gcloud run deploy aiforgood-api \
+  --image gcr.io/$PROJECT_ID/aiforgood-api \
+  --region us-central1 \
+  --platform managed \
+  --set-env-vars ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn \
+  --set-env-vars SESSION_SECRET=YOUR_SECRET
+```
 
 ## GitHub Pages setup notes
 
