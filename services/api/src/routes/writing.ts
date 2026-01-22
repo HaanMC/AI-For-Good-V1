@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { AuthenticatedRequest } from "../middleware/auth";
 import { generateWithFallback } from "../services/geminiClient";
 import { firestore } from "../services/firestore";
+import { recordSubmission } from "../services/submissions";
 
 const router = Router();
 
@@ -14,6 +15,50 @@ router.post("/writing/feedback", async (req: AuthenticatedRequest, res) => {
     const payload = req.body as Record<string, unknown>;
     const { text, raw } = await generateWithFallback(payload as Parameters<typeof generateWithFallback>[0]);
 
+    let score: number | null = null;
+    const weaknesses: string[] = [];
+    if (text) {
+      try {
+        const parsed = JSON.parse(text) as {
+          rubric?: {
+            logicScore?: number;
+            vocabularyScore?: number;
+            creativityScore?: number;
+            knowledgeScore?: number;
+          };
+        };
+        const rubric = parsed.rubric;
+        if (rubric) {
+          const scores = [
+            rubric.logicScore,
+            rubric.vocabularyScore,
+            rubric.creativityScore,
+            rubric.knowledgeScore,
+          ].filter((value): value is number => typeof value === "number");
+          if (scores.length) {
+            score = Math.round((scores.reduce((sum, value) => sum + value, 0) / scores.length) * 10) / 10;
+          }
+          if ((rubric.logicScore ?? 10) < 6) weaknesses.push("logic");
+          if ((rubric.vocabularyScore ?? 10) < 6) weaknesses.push("vocabulary");
+          if ((rubric.creativityScore ?? 10) < 6) weaknesses.push("creativity");
+          if ((rubric.knowledgeScore ?? 10) < 6) weaknesses.push("knowledge");
+        }
+      } catch (error) {
+        // ignore parse errors
+      }
+    }
+
+    if (req.user?.uid) {
+      await recordSubmission({
+        uid: req.user.uid,
+        type: "writing",
+        payload,
+        feedback: text,
+        score,
+        weaknesses,
+      });
+    }
+
     await firestore.collection("usageLogs").add({
       uid,
       feature: "writing",
@@ -25,6 +70,16 @@ router.post("/writing/feedback", async (req: AuthenticatedRequest, res) => {
 
     return res.json({ ok: true, text, raw, requestId });
   } catch (error) {
+    if (req.user?.uid) {
+      await recordSubmission({
+        uid: req.user.uid,
+        type: "writing",
+        payload: req.body as Record<string, unknown>,
+        feedback: "error",
+        score: null,
+        weaknesses: [],
+      });
+    }
     await firestore.collection("usageLogs").add({
       uid,
       feature: "writing",

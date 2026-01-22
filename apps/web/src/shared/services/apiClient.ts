@@ -1,4 +1,3 @@
-import { auth } from './firebase';
 import { showToast } from '../utils/toast';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -7,17 +6,19 @@ type RequestOptions = RequestInit & { requireAuth?: boolean };
 
 const buildHeaders = async (options: RequestOptions) => {
   const headers = new Headers(options.headers);
-  if (options.requireAuth !== false && auth.currentUser) {
-    const token = await auth.currentUser.getIdToken();
-    headers.set('Authorization', `Bearer ${token}`);
+  if (!headers.has('Content-Type') && options.body) {
+    headers.set('Content-Type', 'application/json');
   }
-  headers.set('Content-Type', 'application/json');
   return headers;
 };
 
 export const apiFetch = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const headers = await buildHeaders(options);
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: 'include',
+    ...options,
+    headers,
+  });
   if (response.status === 429) {
     showToast('Bạn đang thao tác quá nhanh. Vui lòng thử lại sau ít phút.');
   }

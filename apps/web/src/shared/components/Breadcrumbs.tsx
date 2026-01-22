@@ -13,7 +13,7 @@ const breadcrumbMap: Record<string, string> = {
   '/mindmap': 'Mindmap',
   '/study-plan': 'Study Plan',
   '/settings': 'Settings',
-  '/adminpanel': 'Admin',
+  '/adminpanel': 'Admin Panel',
   '/adminpanel/overview': 'Overview',
   '/adminpanel/usage': 'Usage',
   '/adminpanel/users': 'Users',
@@ -27,13 +27,13 @@ const breadcrumbMap: Record<string, string> = {
 const Breadcrumbs: React.FC = () => {
   const location = useLocation();
   const pathSegments = location.pathname.split('/').filter(Boolean);
+  const state = location.state as { breadcrumbLabel?: string } | null;
 
   const crumbs = pathSegments.map((_, index) => {
     const path = '/' + pathSegments.slice(0, index + 1).join('/');
-    return {
-      path,
-      label: breadcrumbMap[path] ?? pathSegments[index],
-    };
+    const isLast = index === pathSegments.length - 1;
+    const label = breadcrumbMap[path] ?? (isLast && state?.breadcrumbLabel ? state.breadcrumbLabel : pathSegments[index]);
+    return { path, label };
   });
 
   return (

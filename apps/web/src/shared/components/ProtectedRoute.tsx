@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ForbiddenPage from './ForbiddenPage';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -23,7 +24,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
   }
 
   if (requireAdmin && role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <ForbiddenPage />;
   }
 
   return <>{children}</>;

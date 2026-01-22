@@ -1,36 +1,52 @@
 import type { Request, Response, NextFunction } from "express";
-import { getAuth } from "firebase-admin/auth";
 import type { RequestWithId } from "./requestId";
+import { firestore } from "../services/firestore";
 
 export type AuthenticatedRequest = RequestWithId & {
   user?: {
     uid: string;
-    role?: string;
-    email?: string;
+    role: "admin" | "student";
+    username: string;
     displayName?: string;
   };
 };
 
-export const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const header = req.header("authorization");
-  if (!header?.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Missing auth token" });
+export type SessionRequest = AuthenticatedRequest & {
+  session?: {
+    uid?: string;
+  } | null;
+};
+
+export const requireAuth = async (req: SessionRequest, res: Response, next: NextFunction) => {
+  const uid = req.session?.uid;
+  if (!uid) {
+    return res.status(401).json({ error: "Missing auth session" });
   }
 
-  const token = header.replace("Bearer ", "").trim();
-
-  try {
-    const decoded = await getAuth().verifyIdToken(token);
-    req.user = {
-      uid: decoded.uid,
-      role: decoded.role as string | undefined,
-      email: decoded.email,
-      displayName: decoded.name,
-    };
-    return next();
-  } catch (error) {
-    return res.status(401).json({ error: "Invalid auth token" });
+  const doc = await firestore.collection("users").doc(uid).get();
+  if (!doc.exists) {
+    return res.status(401).json({ error: "Invalid auth session" });
   }
+
+  const data = doc.data() as {
+    uid: string;
+    role?: "admin" | "student";
+    username?: string;
+    displayName?: string;
+  };
+
+  if (!data?.uid || !data?.username) {
+    return res.status(401).json({ error: "Invalid auth session" });
+  }
+
+  req.user = {
+    uid: data.uid,
+    role: data.role ?? "student",
+    username: data.username,
+    displayName: data.displayName,
+  };
+
+  return next();
 };
 
 export const requireAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

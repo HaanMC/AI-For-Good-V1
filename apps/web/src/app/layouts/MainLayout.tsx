@@ -36,16 +36,12 @@ const MainLayout: React.FC = () => {
           {user ? (
             <>
               <div className="text-right">
-                <p className="text-sm font-medium text-stone-900">{user.displayName}</p>
+                <p className="text-sm font-medium text-stone-900">{user.displayName || user.username}</p>
                 <p className="text-xs text-stone-500">{role === 'admin' ? 'Admin' : 'Student'}</p>
               </div>
-              {user.photoURL && (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName || 'User'}
-                  className="h-10 w-10 rounded-full border border-stone-200"
-                />
-              )}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-stone-100 text-sm font-semibold text-stone-600">
+                {(user.displayName || user.username || 'U').slice(0, 1).toUpperCase()}
+              </div>
               {role === 'admin' && (
                 <Link
                   to="/adminpanel"
