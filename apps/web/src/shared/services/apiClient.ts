@@ -1,23 +1,10 @@
-import { API_BASE } from '../api/client';
+import { apiFetch as baseApiFetch } from '../api/client';
 import { showToast } from '../utils/toast';
 
 type RequestOptions = RequestInit & { requireAuth?: boolean };
 
-const buildHeaders = async (options: RequestOptions) => {
-  const headers = new Headers(options.headers);
-  if (!headers.has('Content-Type') && options.body) {
-    headers.set('Content-Type', 'application/json');
-  }
-  return headers;
-};
-
 export const apiFetch = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
-  const headers = await buildHeaders(options);
-  const response = await fetch(`${API_BASE}${path}`, {
-    credentials: 'include',
-    ...options,
-    headers,
-  });
+  const response = await baseApiFetch(path, options);
   if (response.status === 429) {
     showToast('Bạn đang thao tác quá nhanh. Vui lòng thử lại sau ít phút.');
   }

@@ -540,6 +540,10 @@ const LoadingDots = () => (
 // --- Main App Component ---
 
 const App: React.FC = () => {
+  const apiBaseMissing = !import.meta.env.VITE_API_BASE_URL;
+  const apiBaseWarning =
+    'Thiếu cấu hình API (VITE_API_BASE_URL). Hãy set GitHub Actions Variables/Secrets và build lại.';
+
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -573,6 +577,13 @@ const App: React.FC = () => {
       localStorage.setItem('highContrast', 'false');
     }
   }, [isDarkMode, isHighContrast]);
+
+  useEffect(() => {
+    if (apiBaseMissing) {
+      // eslint-disable-next-line no-console
+      console.error(apiBaseWarning);
+    }
+  }, [apiBaseMissing, apiBaseWarning]);
 
   // Initialize SGK store on mount
   useEffect(() => {
@@ -1871,6 +1882,11 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex h-screen bg-stone-50 dark:bg-stone-950 font-sans text-stone-800 dark:text-stone-100 overflow-hidden transition-colors duration-300`}>
+      {apiBaseMissing && (
+        <div className="fixed top-0 inset-x-0 z-[300] bg-red-600 text-white text-center text-sm px-4 py-2 shadow-lg">
+          {apiBaseWarning}
+        </div>
+      )}
 
       {showWelcomeScreen && (
         <WelcomeScreen onContinue={handleContinueFromWelcome} />
