@@ -1,6 +1,5 @@
 import "dotenv/config";
 import express from "express";
-import cors from "cors";
 import cookieSession from "cookie-session";
 import authRoutes from "./routes/auth";
 import chatRoutes from "./routes/chat";
@@ -19,14 +18,28 @@ const app = express();
 app.set("trust proxy", 1);
 
 const allowedOrigin = process.env.ALLOWED_ORIGIN || "https://aiforgood.nguyenhaan.id.vn";
-
-app.use(cors({
-  origin: allowedOrigin,
-  credentials: true,
-  exposedHeaders: ["x-request-id"],
-}));
+const allowedMethods = "GET,POST,PATCH,DELETE,OPTIONS";
+const allowedHeaders = "Content-Type,Authorization";
 app.use(express.json({ limit: "2mb" }));
 app.use(requestIdMiddleware);
+
+app.use("/api", (req, res, next) => {
+  const origin = req.header("Origin");
+  if (origin === allowedOrigin) {
+    res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", allowedMethods);
+    res.setHeader("Access-Control-Allow-Headers", allowedHeaders);
+    res.vary("Origin");
+  }
+
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+
+  next();
+});
 
 const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret";
 if (!process.env.SESSION_SECRET) {
@@ -59,6 +72,10 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
