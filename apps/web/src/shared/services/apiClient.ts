@@ -1,6 +1,5 @@
+import { API_BASE } from '../api/client';
 import { showToast } from '../utils/toast';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 type RequestOptions = RequestInit & { requireAuth?: boolean };
 
@@ -14,7 +13,7 @@ const buildHeaders = async (options: RequestOptions) => {
 
 export const apiFetch = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const headers = await buildHeaders(options);
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     ...options,
     headers,

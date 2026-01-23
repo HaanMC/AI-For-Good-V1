@@ -17,8 +17,15 @@ import AdminSafetyPage from '../features/adminpanel/pages/AdminSafetyPage';
 import AdminSystemPage from '../features/adminpanel/pages/AdminSystemPage';
 
 const AppRouter: React.FC = () => {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
   return (
     <BrowserRouter>
+      {!apiBaseUrl && (
+        <div className="bg-red-100 px-4 py-3 text-center text-sm font-semibold text-red-700">
+          Missing VITE_API_BASE_URL. API requests will fail until this environment variable is set.
+        </div>
+      )}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
