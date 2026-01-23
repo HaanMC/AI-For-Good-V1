@@ -48,7 +48,7 @@ npm run dev
    - Custom domain: `aiforgood.nguyenhaan.id.vn` (configure the Pages custom domain + DNS CNAME).
    - Build output: `apps/web/dist`.
 2. **Cloud Run API**
-   - Deploy the backend from Cloud Build using either the root `/Dockerfile` (builds `services/api`) or `/services/api/Dockerfile` directly.
+   - Deploy the backend from Cloud Build using **Build Type: Dockerfile** and **Source location: `/services/api/Dockerfile`**.
    - Cloud Run listens on `0.0.0.0:$PORT` for container health.
 3. **Firestore**
    - Collections: `users`, `profiles`, `submissions`, `usageLogs`, `proctoringEvents`.
@@ -78,16 +78,16 @@ npm run dev
 ## Cloud Run deployment steps (Cloud Build UI)
 
 1. Open **Cloud Run → Deploy container** and select **Source**.
-2. **Choose Dockerfile path**:
-   - **Default root Dockerfile**: leave the Dockerfile path as `/Dockerfile` (builds the backend from `services/api`).
-   - **Explicit service Dockerfile**: set Dockerfile path to `/services/api/Dockerfile`.
-3. Set **Build context** to the repository root.
-4. Set environment variables:
+2. Set **Build Type** to **Dockerfile**.
+3. Set **Source location** to `/services/api/Dockerfile`.
+4. Set **Build context** to the repository root.
+5. Set environment variables:
    - `ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn`
    - `ADMIN_USERNAME` and `ADMIN_PASSWORD` (override defaults in production)
    - `SESSION_SECRET` (required for cookie signing)
-5. Grant the Cloud Run service account **Cloud Datastore User** (Firestore) and Vertex AI access.
-6. Deploy and confirm the service responds on the `$PORT` provided by Cloud Run.
+6. Grant the Cloud Run service account **Cloud Datastore User** (Firestore) and Vertex AI access.
+7. Deploy and confirm the service responds on the `$PORT` provided by Cloud Run.
+8. Verify quickly with `GET /api/health` (returns JSON).
 
 ## Cloud Build CLI example
 
