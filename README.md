@@ -1,32 +1,55 @@
-# AI For Good V1 — AI Học Văn 10
+# AI For Good V1 — AI Hoc Van 10
 
 AI For Good V1 is a production-ready learning platform for Grade 10 Vietnamese Literature. The project ships a Vite/React web client on GitHub Pages and a Cloud Run-ready Node/Express API that stores learning data in Firestore and brokers AI requests to Vertex AI Gemini.
 
 ## Architecture
 
 ```
-Browser (GitHub Pages: apps/web)
-  -> Cloud Run API (services/api)
-      -> Firestore (users, profiles, submissions, usage logs)
-      -> Vertex AI Gemini
++---------------------------+
+|  Frontend (GitHub Pages)  |
+|  apps/web - Vite + React  |
+|  aiforgood.nguyenhaan.id.vn
++------------+--------------+
+             |
+             | HTTPS (CORS)
+             v
++---------------------------+
+|  API (Cloud Run)          |
+|  services/api - Node/TS   |
+|  asia-southeast1          |
++------------+--------------+
+             |
+     +-------+-------+
+     |               |
+     v               v
++----------+  +-------------+
+| Firestore|  | Vertex AI   |
+| Database |  | Gemini LLM  |
++----------+  +-------------+
 ```
 
-- **Frontend**: Vite + React SPA hosted on GitHub Pages with custom domain `aiforgood.nguyenhaan.id.vn`.
-- **Backend**: Node/TypeScript Cloud Run API with cookie-based auth and admin RBAC.
-- **Data**: Firestore collections for users, profiles, submissions, usage logs, and proctoring events.
-- **LLM**: Server-side calls to Vertex AI Gemini (no API keys in frontend).
+| Component | Technology | Hosting |
+|-----------|------------|---------|
+| Frontend | Vite + React SPA | GitHub Pages (`aiforgood.nguyenhaan.id.vn`) |
+| Backend API | Node.js + TypeScript + Express | Cloud Run (`asia-southeast1`) |
+| Database | Firestore | GCP (users, profiles, submissions, usage logs) |
+| LLM | Vertex AI Gemini | GCP (server-side calls only) |
+| Container Registry | Artifact Registry | GCP (`asia-southeast1`) |
 
-## Folder map
+## Folder Map
 
 ```
-apps/web/       # Vite React app (GitHub Pages)
-services/api/   # Cloud Run API (Node/TypeScript)
-docs/           # Architecture + deployment + security
+apps/web/           # Vite React app (GitHub Pages)
+services/api/       # Cloud Run API (Node/TypeScript)
+  ├── Dockerfile    # Multi-stage Docker build
+  ├── cloudbuild.yaml  # Cloud Build config for Artifact Registry
+  └── src/          # API source code
+docs/               # Architecture + deployment + security guides
 ```
 
-## Local development
+## Local Development
 
-### Web app
+### Web App (Frontend)
 
 ```bash
 cd apps/web
@@ -34,7 +57,9 @@ npm ci
 npm run dev
 ```
 
-### API (Cloud Run)
+The frontend runs at `http://localhost:5173` by default.
+
+### API (Backend)
 
 ```bash
 cd services/api
@@ -42,81 +67,111 @@ npm ci
 npm run dev
 ```
 
-## Deploy overview
+The API runs at `http://localhost:8080` by default.
 
-1. **GitHub Pages**
-   - Custom domain: `aiforgood.nguyenhaan.id.vn` (configure the Pages custom domain + DNS CNAME).
-   - Build output: `apps/web/dist`.
-2. **Cloud Run API**
-   - Deploy the backend from Cloud Build using **Build Type: Dockerfile** and **Source location: `/services/api/Dockerfile`**.
-   - Cloud Run listens on `0.0.0.0:$PORT` for container health.
-3. **Firestore**
-   - Collections: `users`, `profiles`, `submissions`, `usageLogs`, `proctoringEvents`.
+For local development with GCP services, set:
 
-## Environment variables
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+export GOOGLE_CLOUD_PROJECT=your-project-id
+export GCP_LOCATION=us-central1
+export ALLOWED_ORIGIN=http://localhost:5173
+export SESSION_SECRET=dev-secret
+```
 
-### Frontend (GitHub Actions variables)
+## Deploy API to Cloud Run
 
-| Variable | Purpose |
-| --- | --- |
-| `VITE_API_BASE_URL` | Cloud Run API URL (e.g. `https://api-xyz.a.run.app`) |
+The API is deployed to Cloud Run using Artifact Registry for container images.
+
+**Full deployment guide:** [docs/gcp-cloudrun-deploy.md](docs/gcp-cloudrun-deploy.md)
+
+### Quick Deploy (CLI)
+
+1. Build and push image:
+   ```bash
+   gcloud builds submit \
+     --config=services/api/cloudbuild.yaml \
+     --project=gen-lang-client-0038785330 \
+     .
+   ```
+
+2. Deploy to Cloud Run:
+   ```bash
+   gcloud run deploy aiforgood \
+     --image=asia-southeast1-docker.pkg.dev/gen-lang-client-0038785330/aiforgood/aiforgood-api:latest \
+     --region=asia-southeast1 \
+     --platform=managed \
+     --allow-unauthenticated \
+     --set-env-vars="ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn,SESSION_SECRET=your-secret"
+   ```
+
+3. Verify:
+   ```bash
+   curl https://YOUR_CLOUD_RUN_URL/api/health
+   ```
+
+### Image Location
+
+Images are stored in Artifact Registry:
+```
+asia-southeast1-docker.pkg.dev/gen-lang-client-0038785330/aiforgood/aiforgood-api:TAG
+```
+
+## Deploy Frontend to GitHub Pages
+
+The frontend is automatically deployed via GitHub Actions on push to `main`.
+
+1. Set repository variable `VITE_API_BASE_URL` to the Cloud Run API URL
+2. Configure custom domain `aiforgood.nguyenhaan.id.vn` in GitHub Pages settings
+3. Set up DNS CNAME record pointing to GitHub Pages
+
+## Environment Variables
+
+### Frontend (GitHub Actions)
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `VITE_API_BASE_URL` | Cloud Run API URL | `https://aiforgood-xyz.a.run.app` |
 
 ### Backend (Cloud Run)
 
-| Variable | Purpose |
-| --- | --- |
-| `GOOGLE_CLOUD_PROJECT` | GCP project ID for Firestore + Vertex AI (preferred) |
-| `GCP_PROJECT_ID` | GCP project ID fallback |
-| `GCP_LOCATION` | Vertex AI region (e.g. `us-central1`) |
-| `ALLOWED_ORIGIN` | CORS origin (default: `https://aiforgood.nguyenhaan.id.vn`) |
-| `ADMIN_USERNAME` | Admin username (default: `haanadmin`) |
-| `ADMIN_PASSWORD` | Admin password (default: `Haan@2026!123`) |
-| `SESSION_SECRET` | Cookie signing secret |
-| `COOKIE_SECURE` | Set to `true` to force secure cookies (default: `true`) |
-| `DAILY_QUOTA` | Per-user daily request quota |
+| Variable | Purpose | Required | Default |
+|----------|---------|----------|---------|
+| `GOOGLE_CLOUD_PROJECT` | GCP project ID for Firestore + Vertex AI | Yes | - |
+| `GCP_LOCATION` | Vertex AI region | Yes | `us-central1` |
+| `ALLOWED_ORIGIN` | CORS allowed origin | Yes | `https://aiforgood.nguyenhaan.id.vn` |
+| `SESSION_SECRET` | Cookie signing secret | Yes | - |
+| `ADMIN_USERNAME` | Admin login username | No | `haanadmin` |
+| `ADMIN_PASSWORD` | Admin login password | Yes | (change default!) |
+| `DAILY_QUOTA` | Per-user daily request quota | No | `500` |
+| `COOKIE_SECURE` | Force secure cookies | No | `true` |
+| `PORT` | Server listen port | No | `8080` |
 
-## Cloud Run deployment steps (Cloud Build UI)
+## API Endpoints
 
-1. Open **Cloud Run → Deploy container** and select **Source**.
-2. Set **Build Type** to **Dockerfile**.
-3. Set **Source location** to `/services/api/Dockerfile`.
-4. Set **Build context** to `/services/api`.
-   - Cloud Build uses `services/api` as the Docker build context, so `services/api/package-lock.json` must be committed for `npm ci` to run during the image build.
-5. Set environment variables:
-   - `ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn`
-   - `ADMIN_USERNAME` and `ADMIN_PASSWORD` (override defaults in production)
-   - `SESSION_SECRET` (required for cookie signing)
-6. Grant the Cloud Run service account **Cloud Datastore User** (Firestore) and Vertex AI access.
-7. Deploy and confirm the service responds on the `$PORT` provided by Cloud Run.
-8. Verify quickly with `GET /api/health` (returns JSON).
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Health check |
+| `/api/auth/register` | POST | User registration |
+| `/api/auth/login` | POST | User login |
+| `/api/auth/logout` | POST | User logout |
+| `/api/chat/*` | * | Chat with Gemini (authenticated) |
+| `/api/exam/*` | * | Exam/quiz endpoints (authenticated) |
+| `/api/writing/*` | * | Writing feedback (authenticated) |
+| `/api/student/*` | * | Student profile (authenticated) |
+| `/api/admin/*` | * | Admin endpoints (admin role required) |
 
-## Cloud Build CLI example
+## Security Notes
 
-```bash
-gcloud builds submit --tag gcr.io/$PROJECT_ID/aiforgood-api .
-```
+- Change `ADMIN_PASSWORD` in production and rotate regularly
+- Passwords are hashed with `bcrypt`
+- Session cookies are `HttpOnly`, `Secure`, and `SameSite=None` for cross-site auth
+- LLM calls remain server-side; no frontend secrets exposed
+- Rate limits are enforced for auth and API usage
 
-Then deploy the image to Cloud Run:
+## Documentation
 
-```bash
-gcloud run deploy aiforgood-api \
-  --image gcr.io/$PROJECT_ID/aiforgood-api \
-  --region us-central1 \
-  --platform managed \
-  --set-env-vars ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn \
-  --set-env-vars SESSION_SECRET=YOUR_SECRET
-```
-
-## GitHub Pages setup notes
-
-- The Pages build expects `apps/web/package-lock.json` for `npm ci`.
-- Configure the GitHub Actions repository variable `VITE_API_BASE_URL` to point at the Cloud Run URL.
-- Ensure the custom domain `aiforgood.nguyenhaan.id.vn` is configured in GitHub Pages and DNS.
-
-## Security notes
-
-- Change `ADMIN_PASSWORD` in production and rotate regularly.
-- Passwords are hashed with `bcrypt`.
-- Session cookies are `HttpOnly`, `Secure`, and `SameSite=None` to allow cross-site auth from GitHub Pages.
-- LLM calls remain server-side; no frontend secrets.
-- Rate limits are enforced for auth and API usage.
+- [GCP Cloud Run Deployment](docs/gcp-cloudrun-deploy.md) - Full deployment guide with Artifact Registry
+- [Architecture](docs/ARCHITECTURE.md) - System architecture and data model
+- [Security](docs/SECURITY.md) - Security best practices
+- [Admin Bootstrap](docs/BOOTSTRAP_ADMIN.md) - Initial admin setup
