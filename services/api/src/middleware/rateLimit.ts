@@ -1,5 +1,5 @@
 import type { Response, NextFunction } from "express";
-import type { AuthenticatedRequest } from "./auth";
+import type { AuthenticatedRequest } from "./auth.js";
 
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 60;

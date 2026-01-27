@@ -1,7 +1,7 @@
 import { Router } from "express";
-import type { AuthenticatedRequest } from "../middleware/auth";
-import { generateWithFallback } from "../services/geminiClient";
-import { firestore } from "../services/firestore";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { generateWithFallback } from "../services/geminiClient.js";
+import { firestore } from "../services/firestore.js";
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.post("/chat", async (req: AuthenticatedRequest, res) => {
     });
 
     return res.json({ ok: true, text, raw, requestId });
-  } catch (error) {
+  } catch (error: unknown) {
     await firestore.collection("usageLogs").add({
       uid,
       feature: "chat",

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import type { AuthenticatedRequest } from "../middleware/auth";
-import { firestore } from "../services/firestore";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { firestore } from "../services/firestore.js";
 
 const router = Router();
 

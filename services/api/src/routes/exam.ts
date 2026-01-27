@@ -1,8 +1,8 @@
 import { Router } from "express";
-import type { AuthenticatedRequest } from "../middleware/auth";
-import { generateWithFallback } from "../services/geminiClient";
-import { firestore } from "../services/firestore";
-import { recordSubmission } from "../services/submissions";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { generateWithFallback } from "../services/geminiClient.js";
+import { firestore } from "../services/firestore.js";
+import { recordSubmission } from "../services/submissions.js";
 
 const router = Router();
 
@@ -36,7 +36,7 @@ router.post("/exam/generate", async (req: AuthenticatedRequest, res) => {
     });
 
     return res.json({ ok: true, text, raw, requestId });
-  } catch (error) {
+  } catch (error: unknown) {
     if (req.user?.uid) {
       await recordSubmission({
         uid: req.user.uid,

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
-import type { RequestWithId } from "./requestId";
-import { firestore } from "../services/firestore";
+import type { RequestWithId } from "./requestId.js";
+import { firestore } from "../services/firestore.js";
 
 export type AuthenticatedRequest = RequestWithId & {
   user?: {

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import type { AuthenticatedRequest } from "../middleware/auth";
-import { firestore } from "../services/firestore";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { firestore } from "../services/firestore.js";
 import { nanoid } from "nanoid";
 
 const router = Router();
@@ -99,7 +99,10 @@ router.get("/admin/usage", async (req, res) => {
   if (uid) query = query.where("uid", "==", uid);
   if (feature) query = query.where("feature", "==", feature);
   const snapshot = await query.orderBy("createdAt", "desc").limit(100).get();
-  const logs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const logs = snapshot.docs.map((doc) => {
+    const data = doc.data() as Record<string, unknown>;
+    return { id: doc.id, ...data };
+  });
   const summary = logs.reduce(
     (acc, log) => {
       const featureKey = String(log.feature || "unknown");
