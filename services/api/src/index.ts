@@ -17,7 +17,18 @@ import { ensureAdminUser } from "./services/adminSeed.js";
 const app = express();
 app.set("trust proxy", 1);
 
-const allowedOrigin = process.env.ALLOWED_ORIGIN || "https://aiforgood.nguyenhaan.id.vn";
+const parseOrigins = (origins?: string) =>
+  (origins || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const allowedOrigins = new Set([
+  "http://localhost:5173",
+  "https://aiforgood.nguyenhaan.id.vn",
+  ...parseOrigins(process.env.ALLOWED_ORIGINS),
+  ...parseOrigins(process.env.ALLOWED_ORIGIN),
+]);
 const allowedMethods = "GET,POST,PATCH,DELETE,OPTIONS";
 const allowedHeaders = "Content-Type,Authorization";
 app.use(express.json({ limit: "2mb" }));
@@ -25,8 +36,8 @@ app.use(requestIdMiddleware);
 
 app.use("/api", (req, res, next) => {
   const origin = req.header("Origin");
-  if (origin === allowedOrigin) {
-    res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Allow-Methods", allowedMethods);
     res.setHeader("Access-Control-Allow-Headers", allowedHeaders);
@@ -41,9 +52,9 @@ app.use("/api", (req, res, next) => {
   next();
 });
 
-const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret";
-if (!process.env.SESSION_SECRET) {
-  logInfo("session_secret_missing", { warning: "Set SESSION_SECRET in production." });
+const sessionSecret = process.env.SESSION_SECRET || process.env.COOKIE_SECRET || "dev-session-secret";
+if (!process.env.SESSION_SECRET && !process.env.COOKIE_SECRET) {
+  logInfo("session_secret_missing", { warning: "Set SESSION_SECRET or COOKIE_SECRET in production." });
 }
 
 app.use(
@@ -93,10 +104,15 @@ app.use((error: Error, _req: express.Request, res: express.Response, _next: expr
 });
 
 const port = Number(process.env.PORT || 8080);
-app.listen(port, "0.0.0.0", () => {
-  logInfo("api_listening", { port });
-});
 
-ensureAdminUser().catch((error: unknown) => {
+const startServer = async () => {
+  await ensureAdminUser();
+  app.listen(port, "0.0.0.0", () => {
+    logInfo("api_listening", { port });
+  });
+};
+
+startServer().catch((error: unknown) => {
   logError("admin_seed_failed", { message: error instanceof Error ? error.message : "unknown" });
+  process.exit(1);
 });

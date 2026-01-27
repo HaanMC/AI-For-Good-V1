@@ -42,8 +42,8 @@ AI For Good V1 is a production-ready learning platform for Grade 10 Vietnamese L
 apps/web/           # Vite React app (GitHub Pages)
 services/api/       # Cloud Run API (Node/TypeScript)
   ├── Dockerfile    # Multi-stage Docker build
-  ├── cloudbuild.yaml  # Cloud Build config for Artifact Registry
   └── src/          # API source code
+cloudbuild.yaml     # Cloud Build config for Artifact Registry + Cloud Run
 docs/               # Architecture + deployment + security guides
 ```
 
@@ -75,7 +75,7 @@ For local development with GCP services, set:
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 export GOOGLE_CLOUD_PROJECT=your-project-id
 export GCP_LOCATION=us-central1
-export ALLOWED_ORIGIN=http://localhost:5173
+export ALLOWED_ORIGINS=http://localhost:5173
 export SESSION_SECRET=dev-secret
 ```
 
@@ -85,24 +85,54 @@ The API is deployed to Cloud Run using Artifact Registry for container images.
 
 **Full deployment guide:** [docs/gcp-cloudrun-deploy.md](docs/gcp-cloudrun-deploy.md)
 
+### Artifact Registry + Cloud Build Setup
+
+1. Create Artifact Registry repository (once):
+   ```bash
+   gcloud artifacts repositories create aiforgood \
+     --repository-format=docker \
+     --location=asia-southeast1 \
+     --description="AI For Good API images"
+   ```
+
+2. Grant Cloud Build permissions:
+   ```bash
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:281798566132@cloudbuild.gserviceaccount.com" \
+     --role="roles/artifactregistry.writer"
+
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:281798566132@cloudbuild.gserviceaccount.com" \
+     --role="roles/run.admin"
+
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:281798566132@cloudbuild.gserviceaccount.com" \
+     --role="roles/iam.serviceAccountUser"
+   ```
+
+3. Create/update a Cloud Build trigger to use `cloudbuild.yaml` (do not use Dockerfile mode):
+   - Trigger config file: `cloudbuild.yaml` at repo root
+   - Build context: repository root
+   - Ensure substitutions match the defaults in the file (region `asia-southeast1`)
+
 ### Quick Deploy (CLI)
 
 1. Build and push image:
    ```bash
    gcloud builds submit \
-     --config=services/api/cloudbuild.yaml \
-     --project=gen-lang-client-0038785330 \
+     --config=cloudbuild.yaml \
+     --project=YOUR_PROJECT_ID \
      .
    ```
 
 2. Deploy to Cloud Run:
    ```bash
    gcloud run deploy aiforgood \
-     --image=asia-southeast1-docker.pkg.dev/gen-lang-client-0038785330/aiforgood/aiforgood-api:latest \
+     --image=asia-southeast1-docker.pkg.dev/YOUR_PROJECT_ID/aiforgood/aiforgood-api:latest \
      --region=asia-southeast1 \
      --platform=managed \
      --allow-unauthenticated \
-     --set-env-vars="ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn,SESSION_SECRET=your-secret"
+     --set-env-vars="ALLOWED_ORIGINS=https://aiforgood.nguyenhaan.id.vn,SESSION_SECRET=your-secret,ADMIN_USERNAME=admin,ADMIN_PASSWORD=strong-password"
    ```
 
 3. Verify:
@@ -110,11 +140,20 @@ The API is deployed to Cloud Run using Artifact Registry for container images.
    curl https://YOUR_CLOUD_RUN_URL/api/health
    ```
 
+Cloud Run environment variables to set:
+
+- `ALLOWED_ORIGINS` (or legacy `ALLOWED_ORIGIN`)
+- `SESSION_SECRET` (or legacy `COOKIE_SECRET`)
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `GOOGLE_CLOUD_PROJECT`
+- `GCP_LOCATION`
+
 ### Image Location
 
 Images are stored in Artifact Registry:
 ```
-asia-southeast1-docker.pkg.dev/gen-lang-client-0038785330/aiforgood/aiforgood-api:TAG
+asia-southeast1-docker.pkg.dev/YOUR_PROJECT_ID/aiforgood/aiforgood-api:TAG
 ```
 
 ## Deploy Frontend to GitHub Pages
@@ -139,10 +178,12 @@ The frontend is automatically deployed via GitHub Actions on push to `main`.
 |----------|---------|----------|---------|
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID for Firestore + Vertex AI | Yes | - |
 | `GCP_LOCATION` | Vertex AI region | Yes | `us-central1` |
-| `ALLOWED_ORIGIN` | CORS allowed origin | Yes | `https://aiforgood.nguyenhaan.id.vn` |
-| `SESSION_SECRET` | Cookie signing secret | Yes | - |
-| `ADMIN_USERNAME` | Admin login username | No | `haanadmin` |
-| `ADMIN_PASSWORD` | Admin login password | Yes | (change default!) |
+| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | No | `http://localhost:5173,https://aiforgood.nguyenhaan.id.vn` |
+| `ALLOWED_ORIGIN` | Legacy single allowed origin | No | - |
+| `SESSION_SECRET` | Cookie signing secret (preferred) | No | - |
+| `COOKIE_SECRET` | Cookie signing secret (legacy) | No | - |
+| `ADMIN_USERNAME` | Admin login username | Yes | - |
+| `ADMIN_PASSWORD` | Admin login password | Yes | - |
 | `DAILY_QUOTA` | Per-user daily request quota | No | `500` |
 | `COOKIE_SECURE` | Force secure cookies | No | `true` |
 | `PORT` | Server listen port | No | `8080` |

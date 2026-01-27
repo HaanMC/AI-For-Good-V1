@@ -1,10 +1,7 @@
 import bcrypt from "bcrypt";
 import { nanoid } from "nanoid";
 import { firestore } from "./firestore.js";
-import { logInfo, logError } from "../utils/logger.js";
-
-const DEFAULT_ADMIN_USERNAME = "haanadmin";
-const DEFAULT_ADMIN_PASSWORD = "Haan@2026!123";
+import { logInfo } from "../utils/logger.js";
 
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
 
@@ -24,12 +21,20 @@ export const ensureAdminUser = async () => {
     return;
   }
 
-  const adminUsername = (process.env.ADMIN_USERNAME || DEFAULT_ADMIN_USERNAME).trim().toLowerCase();
-  const adminPassword = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+  const rawAdminUsername = process.env.ADMIN_USERNAME;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!rawAdminUsername || !adminPassword) {
+    throw new Error("Missing ADMIN_USERNAME or ADMIN_PASSWORD env vars for admin bootstrap.");
+  }
+
+  const adminUsername = rawAdminUsername.trim().toLowerCase();
+  if (!adminUsername) {
+    throw new Error("ADMIN_USERNAME cannot be empty.");
+  }
 
   if (!USERNAME_REGEX.test(adminUsername)) {
-    logError("admin_seed_failed", { reason: "Invalid ADMIN_USERNAME format." });
-    return;
+    throw new Error("Invalid ADMIN_USERNAME format.");
   }
 
   const uid = nanoid();
@@ -50,6 +55,5 @@ export const ensureAdminUser = async () => {
 
   logInfo("admin_seeded", {
     username: adminUsername,
-    warning: "Change ADMIN_PASSWORD in production using environment variables.",
   });
 };
