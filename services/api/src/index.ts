@@ -1,18 +1,18 @@
 import "dotenv/config";
 import express from "express";
 import cookieSession from "cookie-session";
-import authRoutes from "./routes/auth";
-import chatRoutes from "./routes/chat";
-import adminRoutes from "./routes/admin";
-import studentRoutes from "./routes/student";
-import telemetryRoutes from "./routes/telemetry";
-import examRoutes from "./routes/exam";
-import writingRoutes from "./routes/writing";
-import { requestIdMiddleware } from "./middleware/requestId";
-import { requireAuth, requireAdmin } from "./middleware/auth";
-import { rateLimit } from "./middleware/rateLimit";
-import { logInfo, logError } from "./utils/logger";
-import { ensureAdminUser } from "./services/adminSeed";
+import authRoutes from "./routes/auth.js";
+import chatRoutes from "./routes/chat.js";
+import adminRoutes from "./routes/admin.js";
+import studentRoutes from "./routes/student.js";
+import telemetryRoutes from "./routes/telemetry.js";
+import examRoutes from "./routes/exam.js";
+import writingRoutes from "./routes/writing.js";
+import { requestIdMiddleware } from "./middleware/requestId.js";
+import { requireAuth, requireAdmin } from "./middleware/auth.js";
+import { rateLimit } from "./middleware/rateLimit.js";
+import { logInfo, logError } from "./utils/logger.js";
+import { ensureAdminUser } from "./services/adminSeed.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -97,6 +97,6 @@ app.listen(port, "0.0.0.0", () => {
   logInfo("api_listening", { port });
 });
 
-ensureAdminUser().catch((error) => {
+ensureAdminUser().catch((error: unknown) => {
   logError("admin_seed_failed", { message: error instanceof Error ? error.message : "unknown" });
 });

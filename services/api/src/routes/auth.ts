@@ -1,9 +1,9 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
 import { nanoid } from "nanoid";
-import type { SessionRequest } from "../middleware/auth";
-import { firestore } from "../services/firestore";
-import { authRateLimit } from "../middleware/authRateLimit";
+import type { SessionRequest } from "../middleware/auth.js";
+import { firestore } from "../services/firestore.js";
+import { authRateLimit } from "../middleware/authRateLimit.js";
 
 const router = Router();
 

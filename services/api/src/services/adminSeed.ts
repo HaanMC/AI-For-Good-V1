@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { nanoid } from "nanoid";
-import { firestore } from "./firestore";
-import { logInfo, logError } from "../utils/logger";
+import { firestore } from "./firestore.js";
+import { logInfo, logError } from "../utils/logger.js";
 
 const DEFAULT_ADMIN_USERNAME = "haanadmin";
 const DEFAULT_ADMIN_PASSWORD = "Haan@2026!123";

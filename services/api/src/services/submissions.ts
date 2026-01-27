@@ -1,4 +1,4 @@
-import { firestore } from "./firestore";
+import { firestore } from "./firestore.js";
 
 const MAX_SCORE_HISTORY = 12;
 

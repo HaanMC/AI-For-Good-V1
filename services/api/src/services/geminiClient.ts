@@ -1,12 +1,21 @@
 import { VertexAI } from "@google-cloud/vertexai";
-import { logError } from "../utils/logger";
+import type { Content, SafetySetting } from "@google-cloud/vertexai";
+import { logError } from "../utils/logger.js";
 
 export type GeminiRequest = {
   model: string;
-  contents: Array<Record<string, unknown>>;
+  contents: Content[];
   config?: Record<string, unknown>;
-  safetySettings?: Array<Record<string, unknown>>;
-  systemInstruction?: Record<string, unknown> | string;
+  safetySettings?: SafetySetting[];
+  systemInstruction?: Content | string;
+};
+
+const normalizeSystemInstruction = (instruction?: Content | string): Content | undefined => {
+  if (!instruction) return undefined;
+  if (typeof instruction === "string") {
+    return { role: "system", parts: [{ text: instruction }] };
+  }
+  return instruction;
 };
 
 export const generateWithVertex = async (request: GeminiRequest) => {
@@ -23,7 +32,7 @@ export const generateWithVertex = async (request: GeminiRequest) => {
     contents: request.contents,
     generationConfig: request.config,
     safetySettings: request.safetySettings,
-    systemInstruction: request.systemInstruction,
+    systemInstruction: normalizeSystemInstruction(request.systemInstruction),
   });
 
   const text = response.response.candidates?.[0]?.content?.parts?.map((part) => ("text" in part ? part.text : "")).join("") ?? "";
@@ -33,7 +42,7 @@ export const generateWithVertex = async (request: GeminiRequest) => {
 export const generateWithFallback = async (request: GeminiRequest) => {
   try {
     return await generateWithVertex(request);
-  } catch (error) {
+  } catch (error: unknown) {
     logError("Vertex AI unavailable; configure GEMINI_API_KEY fallback in Secret Manager", {
       reason: error instanceof Error ? error.message : "unknown",
     });
