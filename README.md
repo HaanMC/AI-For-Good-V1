@@ -80,7 +80,8 @@ npm run dev
 1. Open **Cloud Run → Deploy container** and select **Source**.
 2. Set **Build Type** to **Dockerfile**.
 3. Set **Source location** to `/services/api/Dockerfile`.
-4. Set **Build context** to the repository root.
+4. Set **Build context** to `/services/api`.
+   - Cloud Build uses `services/api` as the Docker build context, so `services/api/package-lock.json` must be committed for `npm ci` to run during the image build.
 5. Set environment variables:
    - `ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn`
    - `ADMIN_USERNAME` and `ADMIN_PASSWORD` (override defaults in production)
