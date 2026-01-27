@@ -1,9 +1,7 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "./auth.js";
-import { envInt } from "../utils/env.js";
-
-const WINDOW_MS = envInt("RATE_LIMIT_WINDOW_MS", 60_000);
-const MAX_REQUESTS_PER_WINDOW = envInt("RATE_LIMIT_MAX", 60);
+const WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS ?? "60000");
+const MAX_REQUESTS_PER_WINDOW = Number(process.env.RATE_LIMIT_MAX ?? "60");
 const DAILY_MS = 24 * 60 * 60 * 1000;
 const DAILY_QUOTA_DEFAULT = 500;
 
@@ -41,7 +39,7 @@ export const rateLimit = (req: AuthenticatedRequest, res: Response, next: NextFu
     });
   }
 
-  const dailyQuota = envInt("DAILY_QUOTA", DAILY_QUOTA_DEFAULT);
+  const dailyQuota = Number(process.env.DAILY_QUOTA ?? String(DAILY_QUOTA_DEFAULT));
   const dailyLimit = checkLimit(dailyStore, key, DAILY_MS, dailyQuota);
   if (!dailyLimit.allowed) {
     return res.status(429).json({
