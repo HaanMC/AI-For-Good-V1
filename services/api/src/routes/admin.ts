@@ -100,10 +100,7 @@ router.get("/admin/usage", async (req, res) => {
   if (uid) query = query.where("uid", "==", uid);
   if (feature) query = query.where("feature", "==", feature);
   const snapshot = await query.orderBy("createdAt", "desc").limit(100).get();
-  const logs = snapshot.docs.map((doc) => {
-    const data = doc.data() as AnyDoc;
-    return { id: doc.id, ...data };
-  });
+  const logs = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
   const summary = logs.reduce(
     (acc, log) => {
       const featureKey = String(log.feature || "unknown");
