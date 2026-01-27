@@ -4,6 +4,7 @@ import { firestore } from "../services/firestore.js";
 import { nanoid } from "nanoid";
 
 const router = Router();
+type AnyDoc = Record<string, any>;
 
 router.post("/admin/setRole", async (req: AuthenticatedRequest, res) => {
   const { uid, role } = req.body as { uid?: string; role?: string };
@@ -59,7 +60,7 @@ router.post("/admin/classes/:classId/join-code", async (req: AuthenticatedReques
 
 router.get("/admin/classes", async (_req, res) => {
   const snapshot = await firestore.collection("classes").orderBy("createdAt", "desc").get();
-  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
   return res.json({ data });
 });
 
@@ -83,13 +84,13 @@ router.post("/admin/assignments", async (req: AuthenticatedRequest, res) => {
 
 router.get("/admin/assignments", async (_req, res) => {
   const snapshot = await firestore.collection("assignments").orderBy("createdAt", "desc").get();
-  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
   return res.json({ data });
 });
 
 router.get("/admin/submissions", async (_req, res) => {
   const snapshot = await firestore.collection("submissions").orderBy("createdAt", "desc").get();
-  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
   return res.json({ data });
 });
 
@@ -100,7 +101,7 @@ router.get("/admin/usage", async (req, res) => {
   if (feature) query = query.where("feature", "==", feature);
   const snapshot = await query.orderBy("createdAt", "desc").limit(100).get();
   const logs = snapshot.docs.map((doc) => {
-    const data = doc.data() as Record<string, unknown>;
+    const data = doc.data() as AnyDoc;
     return { id: doc.id, ...data };
   });
   const summary = logs.reduce(
@@ -120,7 +121,7 @@ router.get("/admin/usage", async (req, res) => {
 router.get("/admin/users", async (req, res) => {
   const { search } = req.query as { search?: string };
   const snapshot = await firestore.collection("users").orderBy("createdAt", "desc").limit(100).get();
-  let data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  let data = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
   if (search) {
     const lower = search.toLowerCase();
     data = data.filter((user) =>
@@ -146,11 +147,14 @@ router.get("/admin/user/:uid", async (req, res) => {
     .limit(10)
     .get();
 
-  const submissions = submissionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const submissions = submissionsSnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as AnyDoc),
+  }));
 
   return res.json({
-    user: { id: userDoc.id, ...userDoc.data() },
-    profile: profileDoc.exists ? { id: profileDoc.id, ...profileDoc.data() } : null,
+    user: { id: userDoc.id, ...(userDoc.data() as AnyDoc) },
+    profile: profileDoc.exists ? { id: profileDoc.id, ...(profileDoc.data() as AnyDoc) } : null,
     submissions,
   });
 });

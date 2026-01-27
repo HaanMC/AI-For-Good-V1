@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
+import { envInt } from "../utils/env.js";
 
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_ATTEMPTS = 15;
+const WINDOW_MS = envInt("AUTH_RATE_LIMIT_WINDOW_MS", 10 * 60 * 1000);
+const MAX_ATTEMPTS = envInt("AUTH_RATE_LIMIT_MAX", 15);
 
 const authStore = new Map<string, { count: number; resetAt: number }>();
 
