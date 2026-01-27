@@ -8,7 +8,11 @@ const DAILY_QUOTA_DEFAULT = 500;
 const windowStore = new Map<string, { count: number; resetAt: number }>();
 const dailyStore = new Map<string, { count: number; resetAt: number }>();
 
-const getKey = (req: AuthenticatedRequest) => req.user?.uid || req.ip;
+const getKey = (req: AuthenticatedRequest): string =>
+  req.user?.uid ??
+  (typeof req.ip === "string" ? req.ip : undefined) ??
+  (typeof req.socket?.remoteAddress === "string" ? req.socket.remoteAddress : undefined) ??
+  "unknown";
 
 const checkLimit = (
   store: Map<string, { count: number; resetAt: number }>,
@@ -30,7 +34,7 @@ const checkLimit = (
 };
 
 export const rateLimit = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const key = getKey(req);
+  const key: string = getKey(req);
   const windowLimit = checkLimit(windowStore, key, WINDOW_MS, MAX_REQUESTS_PER_WINDOW);
   if (!windowLimit.allowed) {
     return res.status(429).json({

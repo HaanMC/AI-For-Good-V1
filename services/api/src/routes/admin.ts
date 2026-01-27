@@ -100,7 +100,7 @@ router.get("/admin/usage", async (req, res) => {
   if (uid) query = query.where("uid", "==", uid);
   if (feature) query = query.where("feature", "==", feature);
   const snapshot = await query.orderBy("createdAt", "desc").limit(100).get();
-  const logs = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
+  const logs: AnyDoc[] = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
   const summary = logs.reduce(
     (acc, log) => {
       const featureKey = String(log.feature || "unknown");
@@ -118,7 +118,7 @@ router.get("/admin/usage", async (req, res) => {
 router.get("/admin/users", async (req, res) => {
   const { search } = req.query as { search?: string };
   const snapshot = await firestore.collection("users").orderBy("createdAt", "desc").limit(100).get();
-  let data = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
+  let data: AnyDoc[] = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AnyDoc) }));
   if (search) {
     const lower = search.toLowerCase();
     data = data.filter((user) =>

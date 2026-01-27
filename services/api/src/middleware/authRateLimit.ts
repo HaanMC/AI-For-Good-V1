@@ -5,7 +5,10 @@ const MAX_ATTEMPTS = Number(process.env.AUTH_RATE_LIMIT_MAX ?? "10");
 const authStore = new Map<string, { count: number; resetAt: number }>();
 
 export const authRateLimit = (req: Request, res: Response, next: NextFunction) => {
-  const key = req.ip;
+  const key: string =
+    (typeof req.ip === "string" && req.ip) ||
+    (typeof req.socket?.remoteAddress === "string" && req.socket.remoteAddress) ||
+    "unknown";
   const now = Date.now();
   const entry = authStore.get(key);
 
