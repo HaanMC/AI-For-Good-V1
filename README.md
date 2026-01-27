@@ -76,7 +76,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 export GOOGLE_CLOUD_PROJECT=your-project-id
 export GCP_LOCATION=us-central1
 export ALLOWED_ORIGINS=http://localhost:5173
-export SESSION_SECRET=dev-secret
+export COOKIE_SECRET=dev-secret
 ```
 
 ## Deploy API to Cloud Run
@@ -95,7 +95,7 @@ The API is deployed to Cloud Run using Artifact Registry for container images.
      --description="AI For Good API images"
    ```
 
-2. Grant Cloud Build permissions:
+2. Grant Cloud Build permissions (required for `281798566132@cloudbuild.gserviceaccount.com`):
    ```bash
    gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
      --member="serviceAccount:281798566132@cloudbuild.gserviceaccount.com" \
@@ -132,7 +132,7 @@ The API is deployed to Cloud Run using Artifact Registry for container images.
      --region=asia-southeast1 \
      --platform=managed \
      --allow-unauthenticated \
-     --set-env-vars="ALLOWED_ORIGINS=https://aiforgood.nguyenhaan.id.vn,SESSION_SECRET=your-secret,ADMIN_USERNAME=admin,ADMIN_PASSWORD=strong-password"
+     --set-env-vars="ALLOWED_ORIGINS=https://aiforgood.nguyenhaan.id.vn,COOKIE_SECRET=your-secret,ADMIN_USERNAME=admin,ADMIN_PASSWORD=strong-password,GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,GCP_LOCATION=asia-southeast1"
    ```
 
 3. Verify:
@@ -140,10 +140,10 @@ The API is deployed to Cloud Run using Artifact Registry for container images.
    curl https://YOUR_CLOUD_RUN_URL/api/health
    ```
 
-Cloud Run environment variables to set:
+Cloud Run environment variables to set (required):
 
-- `ALLOWED_ORIGINS` (or legacy `ALLOWED_ORIGIN`)
-- `SESSION_SECRET` (or legacy `COOKIE_SECRET`)
+- `ALLOWED_ORIGINS`
+- `COOKIE_SECRET`
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
 - `GOOGLE_CLOUD_PROJECT`
@@ -178,10 +178,10 @@ The frontend is automatically deployed via GitHub Actions on push to `main`.
 |----------|---------|----------|---------|
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID for Firestore + Vertex AI | Yes | - |
 | `GCP_LOCATION` | Vertex AI region | Yes | `us-central1` |
-| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | No | `http://localhost:5173,https://aiforgood.nguyenhaan.id.vn` |
+| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | Yes | `http://localhost:5173,https://aiforgood.nguyenhaan.id.vn` |
+| `COOKIE_SECRET` | Cookie signing secret | Yes | - |
+| `SESSION_SECRET` | Alternate cookie signing secret | No | - |
 | `ALLOWED_ORIGIN` | Legacy single allowed origin | No | - |
-| `SESSION_SECRET` | Cookie signing secret (preferred) | No | - |
-| `COOKIE_SECRET` | Cookie signing secret (legacy) | No | - |
 | `ADMIN_USERNAME` | Admin login username | Yes | - |
 | `ADMIN_PASSWORD` | Admin login password | Yes | - |
 | `DAILY_QUOTA` | Per-user daily request quota | No | `500` |

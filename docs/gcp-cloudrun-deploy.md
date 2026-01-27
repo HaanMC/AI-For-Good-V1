@@ -84,7 +84,10 @@ Cloud Build needs permissions to push images to Artifact Registry and deploy to 
 1. Go to **IAM & Admin** > **Settings**
 2. Note the **Project number** (e.g., `123456789012`)
 
-The Cloud Build service account is: `PROJECT_NUMBER@cloudbuild.gserviceaccount.com`
+The Cloud Build service account is: `PROJECT_NUMBER@cloudbuild.gserviceaccount.com`.
+
+For this repo, the required Cloud Build service account is:
+`281798566132@cloudbuild.gserviceaccount.com`.
 
 ### Via Console
 
@@ -118,6 +121,22 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 # Grant Service Account User (needed to deploy to Cloud Run)
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+If you are using the shared Cloud Build SA for this repo, grant roles directly:
+
+```bash
+gcloud projects add-iam-policy-binding gen-lang-client-0038785330 \
+  --member="serviceAccount:281798566132@cloudbuild.gserviceaccount.com" \
+  --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding gen-lang-client-0038785330 \
+  --member="serviceAccount:281798566132@cloudbuild.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding gen-lang-client-0038785330 \
+  --member="serviceAccount:281798566132@cloudbuild.gserviceaccount.com" \
   --role="roles/iam.serviceAccountUser"
 ```
 
@@ -232,8 +251,8 @@ gcloud run deploy aiforgood \
 
 | Variable | Value | Required |
 |----------|-------|----------|
-| `ALLOWED_ORIGIN` | `https://aiforgood.nguyenhaan.id.vn` | Yes |
-| `SESSION_SECRET` | `<your-secure-secret>` | Yes |
+| `ALLOWED_ORIGINS` | `https://aiforgood.nguyenhaan.id.vn` | Yes |
+| `COOKIE_SECRET` | `<your-secure-secret>` | Yes |
 | `GOOGLE_CLOUD_PROJECT` | `gen-lang-client-0038785330` | Yes |
 | `GCP_LOCATION` | `us-central1` | Yes (for Vertex AI) |
 | `ADMIN_USERNAME` | `haanadmin` | Optional (has default) |
@@ -248,8 +267,8 @@ gcloud run deploy aiforgood \
 ```bash
 gcloud run services update aiforgood \
   --region=asia-southeast1 \
-  --set-env-vars="ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn" \
-  --set-env-vars="SESSION_SECRET=your-secure-secret-here" \
+  --set-env-vars="ALLOWED_ORIGINS=https://aiforgood.nguyenhaan.id.vn" \
+  --set-env-vars="COOKIE_SECRET=your-secure-secret-here" \
   --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0038785330" \
   --set-env-vars="GCP_LOCATION=us-central1" \
   --set-env-vars="ADMIN_USERNAME=haanadmin" \
@@ -358,7 +377,7 @@ To automatically deploy to Cloud Run after each build, add a deploy step to `clo
 
 ```yaml
 # Add after the push steps in services/api/cloudbuild.yaml
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  - name: 'asia-southeast1-docker.pkg.dev/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
       - 'run'
@@ -388,7 +407,7 @@ gcloud projects get-iam-policy PROJECT_ID \
 
 ### Cloud Run: CORS Errors
 
-1. Verify `ALLOWED_ORIGIN` is set correctly
+1. Verify `ALLOWED_ORIGINS` is set correctly
 2. Check the API is returning proper CORS headers
 3. Ensure the frontend URL matches exactly (including `https://`)
 

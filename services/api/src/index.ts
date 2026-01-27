@@ -29,8 +29,8 @@ const allowedOrigins = new Set([
   ...parseOrigins(process.env.ALLOWED_ORIGINS),
   ...parseOrigins(process.env.ALLOWED_ORIGIN),
 ]);
-const allowedMethods = "GET,POST,PATCH,DELETE,OPTIONS";
-const allowedHeaders = "Content-Type,Authorization";
+const allowedMethods = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
+const allowedHeaders = "Content-Type, Authorization";
 app.use(express.json({ limit: "2mb" }));
 app.use(requestIdMiddleware);
 
@@ -87,7 +87,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, service: "api", timestamp: new Date().toISOString() });
 });
 
 app.use("/api", authRoutes);

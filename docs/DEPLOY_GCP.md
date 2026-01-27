@@ -21,9 +21,12 @@ gcloud run deploy ai-for-good-api \
   --source . \
   --region us-central1 \
   --set-env-vars \
-GCP_PROJECT_ID=your-project,\
+GOOGLE_CLOUD_PROJECT=your-project,\
 GCP_LOCATION=us-central1,\
-ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn,\
+ALLOWED_ORIGINS=https://aiforgood.nguyenhaan.id.vn,\
+COOKIE_SECRET=your-secret,\
+ADMIN_USERNAME=admin,\
+ADMIN_PASSWORD=strong-password,\
 DAILY_QUOTA=500
 ```
 
@@ -50,4 +53,3 @@ Set `FIREBASE_SERVICE_ACCOUNT_JSON` and `GOOGLE_APPLICATION_CREDENTIALS` if runn
 export FIREBASE_SERVICE_ACCOUNT_JSON='{"project_id":"..."}'
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 ```
-

@@ -12,7 +12,7 @@
 
 steps:
   # Build the Docker image
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: 'asia-southeast1-docker.pkg.dev/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
@@ -24,13 +24,13 @@ steps:
       - 'services/api'
 
   # Push the image with SHORT_SHA tag
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: 'asia-southeast1-docker.pkg.dev/cloud-builders/docker'
     args:
       - 'push'
       - 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/aiforgood/aiforgood-api:${SHORT_SHA}'
 
   # Push the image with latest tag
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: 'asia-southeast1-docker.pkg.dev/cloud-builders/docker'
     args:
       - 'push'
       - 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/aiforgood/aiforgood-api:latest'

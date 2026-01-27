@@ -5,7 +5,7 @@ substitutions:
   _IMAGE: asia-southeast1-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/aiforgood-api
 
 steps:
-  - name: gcr.io/cloud-builders/docker
+  - name: asia-southeast1-docker.pkg.dev/cloud-builders/docker
     args:
       - build
       - -f
@@ -13,11 +13,11 @@ steps:
       - -t
       - ${_IMAGE}:${SHORT_SHA}
       - services/api
-  - name: gcr.io/cloud-builders/docker
+  - name: asia-southeast1-docker.pkg.dev/cloud-builders/docker
     args:
       - push
       - ${_IMAGE}:${SHORT_SHA}
-  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  - name: asia-southeast1-docker.pkg.dev/cloudsdktool/cloud-sdk
     args:
       - gcloud
       - run
