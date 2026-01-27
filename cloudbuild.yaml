@@ -2,7 +2,7 @@ substitutions:
   _REGION: asia-southeast1
   _AR_REPO: aiforgood
   _SERVICE: aiforgood
-  _IMAGE: asia-southeast1-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/aiforgood-api
+  _IMAGE: api
 
 steps:
   - name: asia-southeast1-docker.pkg.dev/cloud-builders/docker
@@ -11,12 +11,13 @@ steps:
       - -f
       - services/api/Dockerfile
       - -t
-      - ${_IMAGE}:${SHORT_SHA}
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE}:${SHORT_SHA}
       - services/api
   - name: asia-southeast1-docker.pkg.dev/cloud-builders/docker
     args:
       - push
-      - ${_IMAGE}:${SHORT_SHA}
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE}:${SHORT_SHA}
+  # TODO: Set sensitive values (admin credentials, keys) via Cloud Run env vars or Secret Manager.
   - name: asia-southeast1-docker.pkg.dev/cloudsdktool/cloud-sdk
     args:
       - gcloud
@@ -24,15 +25,17 @@ steps:
       - deploy
       - ${_SERVICE}
       - --image
-      - ${_IMAGE}:${SHORT_SHA}
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE}:${SHORT_SHA}
       - --region
       - ${_REGION}
       - --platform
       - managed
       - --allow-unauthenticated
+      - --set-env-vars
+      - NODE_ENV=production,ALLOWED_ORIGIN=https://aiforgood.nguyenhaan.id.vn
 
 images:
-  - ${_IMAGE}:${SHORT_SHA}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE}:${SHORT_SHA}
 
 options:
   logging: CLOUD_LOGGING_ONLY
