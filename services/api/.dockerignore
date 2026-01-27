@@ -1,12 +1,5 @@
 node_modules
-npm-debug.log
-yarn-error.log
-pnpm-debug.log
-.DS_Store
-.env
-.env.*
-.git
-.gitignore
 dist
-logs
+.git
 *.log
+.env*
