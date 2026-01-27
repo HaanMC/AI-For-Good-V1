@@ -1,0 +1,44 @@
+# Cloud Build configuration for AI For Good API
+# Builds and pushes Docker image to Artifact Registry in asia-southeast1
+#
+# Required setup:
+# 1. Enable Artifact Registry API
+# 2. Create repository: gcloud artifacts repositories create aiforgood \
+#      --repository-format=docker --location=asia-southeast1
+# 3. Grant Cloud Build SA permissions (see docs/gcp-cloudrun-deploy.md)
+#
+# Trigger this build from Cloud Build console or CLI:
+#   gcloud builds submit --config=services/api/cloudbuild.yaml .
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/aiforgood/aiforgood-api:${SHORT_SHA}'
+      - '-t'
+      - 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/aiforgood/aiforgood-api:latest'
+      - '-f'
+      - 'services/api/Dockerfile'
+      - 'services/api'
+
+  # Push the image with SHORT_SHA tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/aiforgood/aiforgood-api:${SHORT_SHA}'
+
+  # Push the image with latest tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/aiforgood/aiforgood-api:latest'
+
+# Output the built images
+images:
+  - 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/aiforgood/aiforgood-api:${SHORT_SHA}'
+  - 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/aiforgood/aiforgood-api:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
